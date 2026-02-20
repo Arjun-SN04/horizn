@@ -24,8 +24,10 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
+    // If no FRONTEND_URL set yet, allow all (useful during initial deploy)
+    if (!process.env.FRONTEND_URL) return callback(null, true);
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(null, false); // silent reject, not an error
+    return callback(null, false);
   },
   credentials: true
 }));
