@@ -1,6 +1,9 @@
-# Environment variables — NEVER commit
+# Environment variables — NEVER commit secrets
 .env
 **/.env
+# Allow production env files (contain only public URLs, no secrets)
+!**/.env.production
+!.env.production
 
 # Dependencies
 node_modules
