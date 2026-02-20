@@ -5,9 +5,9 @@ git rm --cached backend/.env 2>nul
 git rm --cached frontend/.env 2>nul
 
 git add -A
-git commit -m "fix: frontend build - relative src path in index.html, node engine version, vercelignore"
+git commit -m "fix: CORS - rebuild allowed origins per request, add OPTIONS preflight handler"
 git push origin main
 
 echo.
-echo === Pushed! Now go Vercel and Redeploy the frontend project ===
+echo === Pushed! Now REDEPLOY the BACKEND on Vercel ===
 pause

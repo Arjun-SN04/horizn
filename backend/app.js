@@ -16,21 +16,28 @@ const LocalStrategy = require("passport-local");
 const User = require("./models/user");
 
 // ── CORS ──────────────────────────────────────────────────────────────
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:4173',
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-
 app.use(cors({
   origin: (origin, callback) => {
-    // If no FRONTEND_URL set yet, allow all (useful during initial deploy)
-    if (!process.env.FRONTEND_URL) return callback(null, true);
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(null, false);
+    // Build allowed list fresh each request so env changes take effect
+    const allowed = [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+    // No origin = server-to-server / curl / Postman — always allow
+    if (!origin) return callback(null, true);
+    if (allowed.includes(origin)) return callback(null, true);
+    // Log blocked origin to help debug
+    console.warn('CORS blocked origin:', origin, '| allowed:', allowed);
+    return callback(new Error('CORS: origin not allowed'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Handle preflight OPTIONS for all routes
+app.options('*', cors());
 
 // ── BODY PARSERS ──────────────────────────────────────────────────────
 app.use(method("_method"));
