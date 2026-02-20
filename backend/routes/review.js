@@ -11,14 +11,13 @@ const {isLoggedIn,isAuthor} = require('../middleware');
 const reviewController = require('../controllers/reviews');
 
 //validation for review
-const validationReview = (req,res,next)=>{
-    let {error} =reviewSchema.validate(req.body);
-    if(error){
-        const msg = error.details.map(el => el.message).join(',');
-        throw new ExpressError(400,msg);
-    } else {
-        next();
+const validationReview = (req, res, next) => {
+    let { error } = reviewSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(', ');
+        return next(new ExpressError(400, msg));
     }
+    next();
 };
 
 //post review

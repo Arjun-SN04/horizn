@@ -136,7 +136,7 @@ app.get('/', (req, res) => {
 
 // ── 404 ───────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  next(new ExpressError("Route not found", 404));
+  next(new ExpressError(404, "Route not found"));
 });
 
 // ── ERROR HANDLER ─────────────────────────────────────────────────────

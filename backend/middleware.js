@@ -42,11 +42,10 @@ const ExpressError = require('./utils/ExpressError');
 module.exports.validateListing = (req, res, next) => {
     let { error } = listingschema.validate(req.body);
     if (error) {
-        const msg = error.details.map(el => el.message).join(',');
-        throw new ExpressError(400, msg);
-    } else {
-        next();
+        const msg = error.details.map(el => el.message).join(', ');
+        return next(new ExpressError(400, msg));
     }
+    next();
 };
 
 const { userSchema } = require('./schema');
