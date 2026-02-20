@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-// In production: VITE_API_URL = your Vercel backend URL (e.g. https://wanderlust-api.vercel.app)
+// v2 — routes updated to /listing/:id
+// In production: VITE_API_URL = your Vercel backend URL
 // In development: Vite proxy handles /api → http://localhost:3000
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}`
