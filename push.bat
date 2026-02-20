@@ -1,12 +1,16 @@
 @echo off
 cd /d "C:\Users\arjun\Downloads\majorproject\majorproject"
 
+echo === Removing package-lock.json from git tracking ===
+git rm --cached backend/package-lock.json 2>nul
 git rm --cached backend/.env 2>nul
 git rm --cached frontend/.env 2>nul
-git rm --cached backend/package-lock.json 2>nul
+
+echo === Deleting package-lock.json so Vercel reinstalls fresh ===
+del /f backend\package-lock.json 2>nul
 
 git add -A
-git commit -m "fix: downgrade dotenv to v16, express to v4, multer to v1 - fix Vercel crash"
+git commit -m "fix: remove package-lock.json so Vercel installs dotenv v16 fresh, not cached v17"
 git push origin main
 
 echo.
