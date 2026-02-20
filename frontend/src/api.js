@@ -30,15 +30,15 @@ export const authAPI = {
 // Listings API calls
 export const listingsAPI = {
   getAllListings: () => api.get('/listing'),
-  getListingById: (id) => api.get(`/listings/${id}`),
-  createListing: (formData) => api.post('/listing/new', formData, {
+  getListingById: (id) => api.get(`/listing/${id}`),
+  createListing: (formData) => api.post('/listing', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   updateListing: (id, formData) => api.patch(`/listing/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  deleteListing: (id) => api.delete(`/listing/${id}/delete`),
-  getEditPage: (id) => api.get(`/listings/${id}/edit`)
+  deleteListing: (id) => api.delete(`/listing/${id}`),
+  getEditPage: (id) => api.get(`/listing/${id}/edit`)
 };
 
 // Reviews API calls

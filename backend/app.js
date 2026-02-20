@@ -108,15 +108,13 @@ passport.deserializeUser(User.deserializeUser());
 app.use(express.static(path.join(__dirname, '/public')));
 
 // ── ROUTES ────────────────────────────────────────────────────────────
-const listingRouter  = require('./routes/listing');
-const reviewRoutes   = require('./routes/review');
-const listingsRoutes = require('./routes/listings');
-const userRoutes     = require('./routes/user');
+const listingRouter = require('./routes/listing');
+const reviewRoutes  = require('./routes/review');
+const userRoutes    = require('./routes/user');
 
-app.use('/listing',      listingRouter);
+app.use('/listing',            listingRouter);
 app.use('/listing/:id/review', reviewRoutes);
-app.use('/listings/:id', listingsRoutes);
-app.use('/user',         userRoutes);
+app.use('/user',               userRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
