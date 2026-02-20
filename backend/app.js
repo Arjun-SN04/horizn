@@ -1,4 +1,6 @@
-if (process.env.NODE_ENV !== 'production') require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') {
+  try { require('dotenv').config(); } catch(e) { console.log('dotenv not loaded:', e.message); }
+}
 
 const express = require("express");
 const app = express();

@@ -3,3 +3,4 @@ uploads
 init
 .env
 *.log
+package-lock.json
