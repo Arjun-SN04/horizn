@@ -23,15 +23,21 @@ const ALLOWED_ORIGINS = [
   'http://localhost:4173',
 ];
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  // Allow exact matches
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow FRONTEND_URL env variable (exact match)
+  if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return true;
+  // Allow ALL Vercel preview deployments for this project
+  if (/\.vercel\.app$/.test(origin)) return true;
+  return false;
+}
+
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin || '';
-  const dynamicOrigins = [...ALLOWED_ORIGINS];
-  if (process.env.FRONTEND_URL) dynamicOrigins.push(process.env.FRONTEND_URL);
-
-  if (!origin || dynamicOrigins.includes(origin)) {
+  if (isAllowedOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', origin); // echo back so browser can inspect
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
