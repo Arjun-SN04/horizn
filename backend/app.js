@@ -8,16 +8,14 @@ const path = require("path");
 const method = require("method-override");
 
 const ExpressError = require("./utils/ExpressError");
-const listingRouter = require("./routes/listing");
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const flash = require('./utils/flash');
-
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
 const User = require("./models/user");
 
-// ── CORS ────────────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
@@ -26,14 +24,13 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, false); // silent reject, not an error
   },
   credentials: true
 }));
 
-// ── BODY PARSERS ─────────────────────────────────────────────────────
+// ── BODY PARSERS ──────────────────────────────────────────────────────
 app.use(method("_method"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -42,36 +39,40 @@ app.use(express.urlencoded({ extended: true }));
 const dbUrl = process.env.MONGODB_ATLAS_URL;
 const secret = process.env.SECRET || 'fallbacksecret123';
 
-async function main() {
-  await mongodb.connect(dbUrl);
+// Only connect if dbUrl exists
+if (dbUrl) {
+  mongodb.connect(dbUrl)
+    .then(() => console.log("✓ MongoDB connected"))
+    .catch((err) => console.error("✗ MongoDB error:", err.message));
+} else {
+  console.error("✗ MONGODB_ATLAS_URL is not set!");
 }
-main()
-  .then(() => console.log("✓ MongoDB connected"))
-  .catch((err) => console.log("✗ MongoDB error:", err));
 
-// ── SESSION STORE ─────────────────────────────────────────────────────
-const store = MongoStore.create({
-  mongoUrl: dbUrl,
-  touchAfter: 24 * 3600
-});
-store.on('error', (err) => console.log('MongoStore error:', err));
-
+// ── SESSION ───────────────────────────────────────────────────────────
 const isProduction = process.env.NODE_ENV === 'production';
 
-const sessionOptions = {
-  store,
+let sessionStore;
+if (dbUrl) {
+  sessionStore = MongoStore.create({
+    mongoUrl: dbUrl,
+    touchAfter: 24 * 3600
+  });
+  sessionStore.on('error', (err) => console.error('MongoStore error:', err.message));
+}
+
+app.use(session({
+  store: sessionStore,
   secret,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     httpOnly: true,
-    secure: isProduction,           // true on Vercel (HTTPS)
-    sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-site cookies
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
   }
-};
+}));
 
-app.use(session(sessionOptions));
 app.use(flash());
 
 // ── PASSPORT ──────────────────────────────────────────────────────────
@@ -81,10 +82,11 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// ── STATIC FILES ──────────────────────────────────────────────────────
+// ── STATIC ────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "/public")));
 
 // ── ROUTES ────────────────────────────────────────────────────────────
+const listingRouter = require("./routes/listing");
 const reviewRoutes = require("./routes/review");
 const listingsRoutes = require('./routes/listings');
 const userRoutes = require('./routes/user');
@@ -110,22 +112,29 @@ app.get('/user/current', (req, res) => {
   }
 });
 
+// Health check — visiting / in browser shows this instead of 500
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'WanderLust API is running' });
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  next(new ExpressError("Page not found!", 404));
+  next(new ExpressError("Route not found", 404));
 });
 
 // ── ERROR HANDLER ─────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
-  const { statusCode = 500, message = "Something went wrong!" } = err;
-  console.error('Error:', statusCode, message);
+  const statusCode = err.statusCode || 500;
+  const message = err.message || "Something went wrong!";
+  console.error(`[${statusCode}] ${message}`);
   res.status(statusCode).json({ success: false, error: message });
 });
 
-// ── START (local dev only — Vercel uses module.exports) ───────────────
+// ── LOCAL DEV ONLY ────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(3000, () => console.log("✓ Backend running on http://localhost:3000"));
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`✓ Server running on http://localhost:${PORT}`));
 }
 
 module.exports = app;
