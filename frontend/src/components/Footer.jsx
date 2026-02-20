@@ -29,7 +29,7 @@ export const Footer = () => (
         <div>
           <h6 className="font-bold text-xs text-white mb-4 tracking-wider">Contact</h6>
           <div className="flex flex-col gap-2.5">
-            {[{ icon: 'fa-solid fa-envelope', text: 'info@wanderlust.com' }, { icon: 'fa-solid fa-phone', text: '+1 (555) 123-4567' }].map(({ icon, text }) => (
+            {[{ icon: 'fa-solid fa-envelope', text: 'info@wanderlust.com' }, { icon: 'fa-solid fa-phone', text: '+91 123456789' }].map(({ icon, text }) => (
               <p key={text} className="text-gray-400 text-xs mb-0 flex items-center gap-2">
                 <i className={icon} style={{ color: '#ff6b6b', fontSize: '11px', width: '14px' }}></i> {text}
               </p>
