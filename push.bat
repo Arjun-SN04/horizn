@@ -5,17 +5,11 @@ git rm --cached backend/.env 2>nul
 git rm --cached frontend/.env 2>nul
 
 git add -A
-git commit -m "fix: CORS headers set before everything else, OPTIONS handled instantly, health check shows FRONTEND_URL"
+git commit -m "fix: downgrade express to v4 + multer to v1 to fix Vercel crash, fix upload middleware order"
 git push origin main
 
 echo.
-echo === PUSHED! ===
-echo.
-echo Now go to: https://github.com/Arjun-SN04/horizn
-echo Check that backend/app.js shows the new code
-echo.
-echo Then Vercel will auto-deploy. After it finishes visit:
+echo === Pushed! Vercel will auto-deploy. Wait 1-2 mins then visit: ===
 echo https://horizn-2p4lfq3u7-arjun-sn04s-projects.vercel.app/
-echo It should show: "frontend":"https://horizn-og89.vercel.app"
-echo.
+echo Should show: status ok + frontend URL
 pause
