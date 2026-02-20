@@ -15,46 +15,32 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local");
 const User = require("./models/user");
 
-// ── CORS ──────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: (origin, callback) => {
-    // Build allowed list fresh each request so env changes take effect
-    const allowed = [
-      'http://localhost:5173',
-      'http://localhost:4173',
-      process.env.FRONTEND_URL,
-    ].filter(Boolean);
-    // No origin = server-to-server / curl / Postman — always allow
-    if (!origin) return callback(null, true);
-    if (allowed.includes(origin)) return callback(null, true);
-    // Log blocked origin to help debug
-    console.warn('CORS blocked origin:', origin, '| allowed:', allowed);
-    return callback(new Error('CORS: origin not allowed'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+// ── CORS — set headers on absolutely every response ───────────────────
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+];
 
-// Handle preflight OPTIONS for all routes
-app.options('*', cors());
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin || '';
+  const dynamicOrigins = [...ALLOWED_ORIGINS];
+  if (process.env.FRONTEND_URL) dynamicOrigins.push(process.env.FRONTEND_URL);
 
-// Safety net — manually set CORS headers on EVERY response
-// This ensures headers are present even on error responses
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowed = [
-    'http://localhost:5173',
-    'http://localhost:4173',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean);
-
-  if (!origin || allowed.includes(origin)) {
+  if (!origin || dynamicOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', origin); // echo back so browser can inspect
   }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,Cookie');
+  res.setHeader('Vary', 'Origin');
+}
+
+// Run before everything else
+app.use((req, res, next) => {
+  setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
@@ -67,7 +53,6 @@ app.use(express.urlencoded({ extended: true }));
 const dbUrl = process.env.MONGODB_ATLAS_URL;
 const secret = process.env.SECRET || 'fallbacksecret123';
 
-// Only connect if dbUrl exists
 if (dbUrl) {
   mongodb.connect(dbUrl)
     .then(() => console.log("✓ MongoDB connected"))
@@ -114,18 +99,18 @@ passport.deserializeUser(User.deserializeUser());
 app.use(express.static(path.join(__dirname, "/public")));
 
 // ── ROUTES ────────────────────────────────────────────────────────────
-const listingRouter = require("./routes/listing");
-const reviewRoutes = require("./routes/review");
+const listingRouter  = require("./routes/listing");
+const reviewRoutes   = require("./routes/review");
 const listingsRoutes = require('./routes/listings');
-const userRoutes = require('./routes/user');
+const userRoutes     = require('./routes/user');
 
 app.use("/listing", listingRouter);
 app.use("/listing/:id/review", reviewRoutes);
 app.use("/listings/:id", listingsRoutes);
 app.use("/user", userRoutes);
 
+// Auth status — always 200
 app.get('/user/auth-status', (req, res) => {
-  // Always 200 — never 401 — frontend just checks the authenticated flag
   return res.status(200).json({
     authenticated: req.isAuthenticated(),
     user: req.isAuthenticated() ? req.user : null
@@ -133,16 +118,18 @@ app.get('/user/auth-status', (req, res) => {
 });
 
 app.get('/user/current', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ user: req.user });
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
+  if (req.isAuthenticated()) return res.json({ user: req.user });
+  return res.status(401).json({ message: 'Not authenticated' });
 });
 
-// Health check — visiting / in browser shows this instead of 500
+// Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'WanderLust API is running' });
+  res.json({
+    status: 'ok',
+    message: 'WanderLust API is running',
+    frontend: process.env.FRONTEND_URL || 'not set',
+    env: process.env.NODE_ENV
+  });
 });
 
 // ── 404 ───────────────────────────────────────────────────────────────
