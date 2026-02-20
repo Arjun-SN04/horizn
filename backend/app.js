@@ -39,6 +39,25 @@ app.use(cors({
 // Handle preflight OPTIONS for all routes
 app.options('*', cors());
 
+// Safety net — manually set CORS headers on EVERY response
+// This ensures headers are present even on error responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowed = [
+    'http://localhost:5173',
+    'http://localhost:4173',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
+  if (!origin || allowed.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  }
+  next();
+});
+
 // ── BODY PARSERS ──────────────────────────────────────────────────────
 app.use(method("_method"));
 app.use(express.json());
@@ -106,11 +125,11 @@ app.use("/listings/:id", listingsRoutes);
 app.use("/user", userRoutes);
 
 app.get('/user/auth-status', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ authenticated: true, user: req.user });
-  } else {
-    res.json({ authenticated: false, user: null });
-  }
+  // Always 200 — never 401 — frontend just checks the authenticated flag
+  return res.status(200).json({
+    authenticated: req.isAuthenticated(),
+    user: req.isAuthenticated() ? req.user : null
+  });
 });
 
 app.get('/user/current', (req, res) => {
