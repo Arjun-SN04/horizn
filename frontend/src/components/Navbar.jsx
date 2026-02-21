@@ -56,7 +56,7 @@ export const Navbar = () => {
           <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center">
             <i className="fa-solid fa-compass text-white text-sm"></i>
           </div>
-          <span className="font-bold text-gray-900 text-base tracking-tight">WanderLust</span>
+          <span className="font-bold text-gray-900 text-base tracking-tight">Horizn</span>
         </Link>
 
         {/* Search — hidden on mobile, visible md+ */}

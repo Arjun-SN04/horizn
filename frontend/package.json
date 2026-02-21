@@ -2,9 +2,9 @@
   "engines": {
     "node": "22.x"
   },
-  "name": "wanderlust-frontend",
+  "name": "horizn-frontend",
   "version": "1.0.0",
-  "description": "WanderLust Frontend React Application",
+  "description": "Horizn Frontend React Application",
   "type": "module",
   "scripts": {
     "dev": "vite",
