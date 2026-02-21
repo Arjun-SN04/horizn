@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,13 +38,69 @@ const features = [
   },
 ];
 
+const stats = [
+  { value: 10000, suffix: '+', label: 'Listings', display: 'K+', divisor: 1000, animate: true },
+  { value: 150, suffix: '+', label: 'Countries', display: null, divisor: null, animate: true },
+  { value: null, static: '2M+', label: 'Travelers' },
+  { value: null, static: '4.9★', label: 'Avg Rating' },
+];
+
+function useCountUp(target, duration = 1800, start = false) {
+  const from = Math.floor(target * 0.75); // start at 75% of target
+  const [count, setCount] = useState(from);
+  useEffect(() => {
+    if (!start) return;
+    let startTime = null;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      // Ease out cubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = Math.floor(from + ease * (target - from));
+      setCount(current);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [start, target, duration]);
+  return count;
+}
+
+const StatCard = ({ stat, started }) => {
+  const raw = useCountUp(stat.animate ? stat.value : 0, 2200, started);
+  let display;
+  if (!stat.animate) {
+    display = stat.static;
+  } else if (stat.divisor) {
+    display = (raw / stat.divisor).toFixed(0) + stat.display;
+  } else {
+    display = raw + stat.suffix;
+  }
+  return (
+    <div className="stat-card bg-white border border-gray-100 rounded-2xl px-6 py-4 text-center shadow-sm min-w-[90px]">
+      <div className="text-2xl font-black text-gray-900">{display}</div>
+      <div className="text-xs text-gray-400 mt-0.5">{stat.label}</div>
+    </div>
+  );
+};
+
 export const Home = () => {
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
+  const [statsStarted, setStatsStarted] = useState(false);
+  const statsRef = useRef(null);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 80);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setStatsStarted(true); observer.disconnect(); } },
+      { threshold: 0.4 }
+    );
+    if (statsRef.current) observer.observe(statsRef.current);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -144,18 +200,10 @@ export const Home = () => {
             )}
           </div>
 
-          {/* Stats row */}
-          <div className={`fade-up d5 ${visible ? 'show' : ''} flex justify-center gap-2 flex-wrap`}>
-            {[
-              { v: '10K+', l: 'Listings' },
-              { v: '150+', l: 'Countries' },
-              { v: '2M+', l: 'Travelers' },
-              { v: '4.9★', l: 'Avg Rating' },
-            ].map((s, i) => (
-              <div key={i} className="stat-card bg-white border border-gray-100 rounded-2xl px-6 py-4 text-center shadow-sm min-w-[90px]">
-                <div className="text-2xl font-black text-gray-900">{s.v}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{s.l}</div>
-              </div>
+          {/* Stats row — counting animation */}
+          <div ref={statsRef} className={`fade-up d5 ${visible ? 'show' : ''} flex justify-center gap-2 flex-wrap`}>
+            {stats.map((s, i) => (
+              <StatCard key={i} stat={s} started={statsStarted} />
             ))}
           </div>
         </div>
