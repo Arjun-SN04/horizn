@@ -39,7 +39,7 @@ export const Footer = () => (
       </div>
       <div className="border-t border-gray-800 pt-6 flex justify-between items-center flex-wrap gap-2">
         <p className="text-gray-500 text-xs mb-0">© 2024 WanderLust. All rights reserved.</p>
-        <p className="text-gray-500 text-xs mb-0">Built with ❤️ for travelers</p>
+        <p className="text-gray-500 text-xs mb-0">Built by Arjun with ❤️ for travelers</p>
       </div>
     </div>
   </footer>
