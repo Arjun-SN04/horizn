@@ -1,31 +1,126 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu, Plus, LogOut, User as UserIcon, UserPlus, LogIn, Bell, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { notificationsAPI } from '../api';
+import { ThemeTogglerButton } from '@/components/animate-ui/components/buttons/theme-toggler';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/animate-ui/components/radix/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/animate-ui/components/radix/sheet';
+
+const timeAgo = (dateStr) => {
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+};
+
+const NotificationBell = () => {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      setIsLoading(true);
+      const res = await notificationsAPI.getAll();
+      setNotifications(res.data.notifications);
+      setUnreadCount(res.data.unreadCount);
+    } catch {
+      // silently ignore — notification bell is non-critical
+    } finally {
+      setIsLoading(false);
+      setLoaded(true);
+    }
+  };
+
+  useEffect(() => { fetchNotifications(); }, []);
+
+  const handleOpenChange = (open) => { if (open) fetchNotifications(); };
+
+  const handleNotificationClick = async (n) => {
+    if (!n.read) {
+      try {
+        await notificationsAPI.markRead(n._id);
+        setNotifications((prev) => prev.map((x) => (x._id === n._id ? { ...x, read: true } : x)));
+        setUnreadCount((c) => Math.max(0, c - 1));
+      } catch { /* ignore */ }
+    }
+    if (n.listing?._id) navigate(`/listings/${n.listing._id}`);
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationsAPI.markAllRead();
+      setNotifications((prev) => prev.map((x) => ({ ...x, read: true })));
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <DropdownMenu onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <button className="relative flex items-center justify-center size-9 rounded-full hover:bg-surface-container-low transition-colors">
+          <Bell className="size-4.5 text-on-surface-variant" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary" />
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/40">
+          <span className="text-sm font-semibold text-on-surface">Notifications</span>
+          {unreadCount > 0 && (
+            <button onClick={handleMarkAllRead} className="flex items-center gap-1 text-xs text-primary font-semibold hover:underline">
+              <Check className="size-3" /> Mark all read
+            </button>
+          )}
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading && !loaded ? (
+            <p className="text-sm text-on-surface-variant text-center py-6">Loading…</p>
+          ) : notifications.length === 0 ? (
+            <p className="text-sm text-on-surface-variant text-center py-6">No notifications yet</p>
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n._id}
+                onClick={() => handleNotificationClick(n)}
+                className={`flex flex-col items-start gap-0.5 w-full text-left px-4 py-3 border-b border-outline-variant/20 last:border-0 hover:bg-surface-container-low transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+              >
+                <span className="text-sm text-on-surface leading-snug">{n.message}</span>
+                <span className="text-xs text-on-surface-variant">{timeAgo(n.createdAt)}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const isHome = location.pathname === '/';
 
-  useEffect(() => { setSearchQuery(searchParams.get('search') || ''); }, [searchParams]);
-
-  // Close menu on route change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
-
-  // Close menu on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -33,171 +128,155 @@ export const Navbar = () => {
     if (success) navigate('/user/login');
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate(searchQuery.trim() ? `/listing?search=${encodeURIComponent(searchQuery.trim())}` : '/listing');
-    setMenuOpen(false);
-  };
-
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    if (location.pathname.startsWith('/listing')) {
-      navigate(val.trim() ? `/listing?search=${encodeURIComponent(val.trim())}` : '/listing', { replace: true });
-    }
-  };
+  const go = (path) => { setMenuOpen(false); navigate(path); };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm" ref={menuRef}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-
+    <nav className="sticky top-0 z-50 glass-effect border-b border-outline-variant/40 shadow-sm">
+      <div className="relative max-w-7xl mx-auto px-margin-mobile md:px-lg h-20 flex items-center justify-between">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2 no-underline flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center">
-            <i className="fa-solid fa-compass text-white text-sm"></i>
-          </div>
-          <span className="font-bold text-gray-900 text-base tracking-tight">Horizn</span>
+        <Link to="/" className="flex items-center no-underline shrink-0">
+          <span className="font-heading font-bold text-primary text-headline-md tracking-tight">Horizn</span>
         </Link>
 
-        {/* Search — hidden on mobile, visible md+ */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm">
-          <div className="relative w-full">
-            <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={handleInputChange}
-              placeholder="Search destinations, cities..."
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 outline-none transition-all focus:border-red-500 focus:bg-white pl-10"
-            />
-          </div>
-        </form>
-
-        {/* Desktop Nav — hidden on mobile */}
-        <div className="hidden md:flex items-center gap-2 ml-auto flex-shrink-0">
-          <Link to="/listing" className="px-3.5 py-2 text-gray-500 text-sm font-medium no-underline rounded-lg transition-all hover:text-gray-900 hover:bg-gray-50">
-            Explore
-          </Link>
-          {!user ? (
-            <>
-              <Link to="/user/login" className="px-3.5 py-2 text-gray-500 text-sm font-medium no-underline rounded-lg transition-all hover:text-gray-900 hover:bg-gray-50">
-                Login
-              </Link>
-              <Link to="/user/signup" className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold no-underline rounded-lg shadow-md hover:shadow-lg transition-all">
-                Sign Up
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link to="/listing/new" className="px-3.5 py-2 text-gray-500 text-xs font-semibold no-underline rounded-lg border border-gray-200 transition-all hover:border-red-500 hover:text-red-500 flex items-center gap-1.5">
-                <i className="fa-solid fa-plus text-xs"></i> Add
-              </Link>
-              <Link to="/user/profile" className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100 no-underline transition-all hover:border-red-500 hover:bg-red-50">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {user.username?.[0]?.toUpperCase()}
-                </div>
-                <span className="text-sm text-gray-700 font-semibold max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap">{user.username}</span>
-              </Link>
-              <button onClick={handleLogout} className="px-3.5 py-2 text-gray-400 text-xs font-medium border-0 bg-transparent cursor-pointer rounded-lg transition-all hover:text-red-500 hover:bg-red-50">
-                Logout
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Mobile right side — avatar/login + hamburger */}
-        <div className="flex md:hidden items-center gap-2 ml-auto">
-          {user ? (
-            <Link to="/user/profile" className="w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-white text-sm font-bold no-underline flex-shrink-0">
-              {user.username?.[0]?.toUpperCase()}
-            </Link>
-          ) : (
-            <Link to="/user/login" className="px-3 py-1.5 text-gray-500 text-sm font-medium no-underline rounded-lg transition-all hover:text-gray-900 hover:bg-gray-50">
-              Login
+        {/* Centered nav links — desktop only, contextual per page */}
+        <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          {isHome && (
+            <Link to="/" className="text-primary text-sm font-bold no-underline border-b-2 border-primary pb-1.5 -mb-1.5">
+              Discover
             </Link>
           )}
-
-          {/* Hamburger button */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white transition-all hover:border-red-400 hover:bg-red-50"
-            aria-label="Toggle menu"
-          >
-            <span className={`block w-4.5 h-0.5 bg-gray-600 rounded-full transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} style={{ width: '18px', height: '2px', display: 'block', backgroundColor: '#4b5563', borderRadius: '9999px', transition: 'all 0.3s', transform: menuOpen ? 'rotate(45deg) translateY(6px)' : 'none' }}></span>
-            <span className={`block bg-gray-600 rounded-full transition-all duration-300`} style={{ width: '18px', height: '2px', backgroundColor: '#4b5563', borderRadius: '9999px', transition: 'all 0.3s', opacity: menuOpen ? 0 : 1 }}></span>
-            <span className={`block bg-gray-600 rounded-full transition-all duration-300`} style={{ width: '18px', height: '2px', display: 'block', backgroundColor: '#4b5563', borderRadius: '9999px', transition: 'all 0.3s', transform: menuOpen ? 'rotate(-45deg) translateY(-6px)' : 'none' }}></span>
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Dropdown Menu */}
-      <div
-        style={{
-          maxHeight: menuOpen ? '500px' : '0',
-          opacity: menuOpen ? 1 : 0,
-          overflow: 'hidden',
-          transition: 'max-height 0.35s ease, opacity 0.25s ease',
-        }}
-        className="md:hidden border-t border-gray-100 bg-white"
-      >
-        <div className="px-4 py-4 flex flex-col gap-3">
-
-          {/* Mobile Search */}
-          <form onSubmit={handleSearch}>
-            <div className="relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={handleInputChange}
-                placeholder="Search destinations..."
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 outline-none focus:border-red-400 focus:bg-white transition-all"
-              />
-            </div>
-          </form>
-
-          {/* Divider */}
-          <div className="h-px bg-gray-100"></div>
-
-          {/* Mobile Links */}
-          <Link to="/listing" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-gray-600 text-sm font-medium no-underline rounded-xl hover:bg-gray-50 transition-all">
-            <i className="fa-solid fa-compass text-red-400 w-4 text-center"></i>
-            Explore Listings
+          <Link to="/listing" className="text-on-surface-variant text-sm font-medium no-underline hover:text-on-surface transition-colors">
+            Explore stays
           </Link>
+          <Link to="/listing/new" className="text-on-surface-variant text-sm font-medium no-underline hover:text-on-surface transition-colors">
+            Become a host
+          </Link>
+        </div>
 
-          {!user ? (
-            <>
-              <Link to="/user/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-gray-600 text-sm font-medium no-underline rounded-xl hover:bg-gray-50 transition-all">
-                <i className="fa-solid fa-right-to-bracket text-red-400 w-4 text-center"></i>
-                Login
-              </Link>
-              <Link to="/user/signup" onClick={() => setMenuOpen(false)} className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold no-underline rounded-xl shadow-md transition-all">
-                <i className="fa-solid fa-user-plus text-xs"></i>
-                Create Account
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link to="/listing/new" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-gray-600 text-sm font-medium no-underline rounded-xl hover:bg-gray-50 transition-all">
-                <i className="fa-solid fa-plus text-red-400 w-4 text-center"></i>
-                Add New Listing
-              </Link>
-              <Link to="/user/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-gray-600 text-sm font-medium no-underline rounded-xl hover:bg-gray-50 transition-all">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                  {user.username?.[0]?.toUpperCase()}
-                </div>
-                <span>{user.username}</span>
-              </Link>
+        {/* Right side — desktop */}
+        <div className="hidden md:flex items-center gap-2 shrink-0">
+          {user && <NotificationBell />}
+          <ThemeTogglerButton variant="ghost" size="icon" className="rounded-full" modes={['light', 'dark']} />
 
-              {/* Divider */}
-              <div className="h-px bg-gray-100"></div>
-
-              <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-red-400 text-sm font-medium border-0 bg-transparent cursor-pointer rounded-xl hover:bg-red-50 transition-all w-full text-left">
-                <i className="fa-solid fa-right-from-bracket w-4 text-center"></i>
-                Logout
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 pl-3 pr-1 py-1 border border-outline-variant rounded-full transition-all hover:shadow-md bg-surface-container-lowest">
+                <Menu className="size-4 text-on-surface-variant" />
+                {user ? (
+                  <Avatar size="sm">
+                    <AvatarFallback className="bg-primary text-on-primary font-bold text-xs">
+                      {user.username?.[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center">
+                    <UserIcon className="size-4 text-on-surface-variant" />
+                  </div>
+                )}
               </button>
-            </>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {!user ? (
+                <>
+                  <DropdownMenuItem onSelect={() => navigate('/user/signup')} className="cursor-pointer font-semibold">
+                    <UserPlus /> Sign up
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/user/login')} className="cursor-pointer">
+                    <LogIn /> Log in
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/listing/new')} className="cursor-pointer">
+                    <Plus /> Become a host
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuItem onSelect={() => navigate('/user/profile')} className="cursor-pointer">
+                    <UserIcon /> Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/listing/new')} className="cursor-pointer">
+                    <Plus /> Add a listing
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={handleLogout} className="cursor-pointer">
+                    <LogOut /> Logout
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Right side — mobile */}
+        <div className="flex md:hidden items-center gap-2 shrink-0">
+          {user && <NotificationBell />}
+          <ThemeTogglerButton variant="ghost" size="icon" className="rounded-full" modes={['light', 'dark']} />
+
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="flex items-center gap-2 pl-3 pr-1 py-1 border border-outline-variant rounded-full transition-all hover:shadow-md bg-surface-container-lowest"
+            >
+              <Menu className="size-4 text-on-surface-variant" />
+              {user ? (
+                <Avatar size="sm">
+                  <AvatarFallback className="bg-primary text-on-primary font-bold text-xs">
+                    {user.username?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center">
+                  <UserIcon className="size-4 text-on-surface-variant" />
+                </div>
+              )}
+            </button>
+            <SheetContent side="right" className="p-0">
+              <SheetHeader className="border-b border-outline-variant/40">
+                <SheetTitle className="font-heading font-bold text-primary">
+                  Horizn
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="px-4 py-4 flex flex-col gap-1">
+                {isHome && (
+                  <Link to="/" onClick={() => setMenuOpen(false)} className="px-3 py-2.5 text-primary text-sm font-bold no-underline rounded-xl bg-primary/5">
+                    Discover
+                  </Link>
+                )}
+                <Link to="/listing" onClick={() => setMenuOpen(false)} className="px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
+                  Explore stays
+                </Link>
+                <Link to="/listing/new" onClick={() => setMenuOpen(false)} className="px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
+                  Become a host
+                </Link>
+
+                <DropdownMenuSeparator className="my-2" />
+
+                {!user ? (
+                  <>
+                    <Link to="/user/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
+                      <LogIn className="text-primary size-4" />
+                      Log in
+                    </Link>
+                    <button onClick={() => go('/user/signup')} className="mt-2 flex items-center justify-center gap-2 py-3 bg-primary text-on-primary text-sm font-bold rounded-full border-0 cursor-pointer">
+                      <UserPlus className="size-4" /> Sign up
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/user/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
+                      <UserIcon className="text-primary size-4" />
+                      {user.username}
+                    </Link>
+                    <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-destructive text-sm font-medium border-0 bg-transparent cursor-pointer rounded-xl hover:bg-destructive/10 transition-all w-full text-left">
+                      <LogOut className="size-4" />
+                      Logout
+                    </button>
+                  </>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </nav>

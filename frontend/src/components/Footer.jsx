@@ -1,45 +1,65 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Globe } from 'lucide-react';
+
+const columns = [
+  {
+    title: 'Support',
+    links: [
+      { to: '/listing', label: 'Explore Listings' },
+      { to: '/user/login', label: 'Help Center' },
+      { to: '/user/login', label: 'Safety information' },
+    ],
+  },
+  {
+    title: 'Hosting',
+    links: [
+      { to: '/listing/new', label: 'Horizn your home' },
+      { to: '/user/signup', label: 'Hosting resources' },
+      { to: '/listing', label: 'Community forum' },
+    ],
+  },
+  {
+    title: 'Horizn',
+    links: [
+      { to: '/', label: 'Newsroom' },
+      { to: '/', label: 'New features' },
+      { to: '/', label: 'Careers' },
+    ],
+  },
+];
 
 export const Footer = () => (
-  <footer className="bg-gray-900 text-white mt-20">
-    <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center">
-              <i className="fa-solid fa-compass text-white text-xs"></i>
-            </div>
-            <span className="font-bold text-sm">Horizn</span>
+  <footer className="bg-surface-container-low border-t border-outline-variant/40 mt-20">
+    <div className="max-w-7xl mx-auto px-margin-mobile md:px-lg">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-xl py-xxl">
+        {columns.map((col) => (
+          <div key={col.title}>
+            <h4 className="text-label-md text-on-surface mb-md">{col.title}</h4>
+            <ul className="space-y-sm">
+              {col.links.map(({ to, label }) => (
+                <li key={label}>
+                  <Link to={to} className="text-on-surface-variant text-body-sm no-underline hover:underline">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="text-gray-400 text-xs leading-relaxed mb-0 max-w-[220px]">
-            Explore amazing places and create unforgettable memories around the world.
-          </p>
-        </div>
-        <div>
-          <h6 className="font-bold text-xs text-white mb-4 tracking-wider">Quick Links</h6>
-          <div className="flex flex-col gap-2.5">
-            {[{ to: '/listing', label: 'Explore Listings' }, { to: '/user/signup', label: 'Sign Up' }, { to: '/user/login', label: 'Login' }].map(({ to, label }) => (
-              <Link key={to} to={to} className="text-gray-400 text-xs no-underline transition-colors hover:text-white">
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h6 className="font-bold text-xs text-white mb-4 tracking-wider">Contact</h6>
-          <div className="flex flex-col gap-2.5">
-            {[{ icon: 'fa-solid fa-envelope', text: 'info@horizn.com' }, { icon: 'fa-solid fa-phone', text: '+91 123456789' }].map(({ icon, text }) => (
-              <p key={text} className="text-gray-400 text-xs mb-0 flex items-center gap-2">
-                <i className={icon} style={{ color: '#ff6b6b', fontSize: '11px', width: '14px' }}></i> {text}
-              </p>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
-      <div className="border-t border-gray-800 pt-6 flex justify-between items-center flex-wrap gap-2">
-        <p className="text-gray-500 text-xs mb-0">© 2024 Horizn. All rights reserved.</p>
-        <p className="text-gray-500 text-xs mb-0">Built by Arjun with ❤️ for travelers</p>
+      <div className="flex flex-col md:flex-row justify-between items-center py-md border-t border-outline-variant/40 gap-md">
+        <div className="flex flex-col md:flex-row items-center gap-sm text-body-sm text-on-surface-variant">
+          <p className="font-heading font-bold text-primary mb-0">Horizn</p>
+          <span>© 2024 Horizn, Inc. · Privacy · Terms</span>
+        </div>
+        <div className="flex items-center gap-xl">
+          <div className="flex items-center gap-xs text-on-surface-variant">
+            <Globe className="size-4" />
+            <span className="text-body-sm font-semibold">English (US)</span>
+          </div>
+          <span className="text-body-sm font-semibold text-on-surface-variant">$ USD</span>
+        </div>
       </div>
     </div>
   </footer>

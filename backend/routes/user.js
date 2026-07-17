@@ -55,4 +55,8 @@ router.put('/profile',             isLoggedIn, userController.updateUserProfile)
 router.put('/profile/username',    isLoggedIn, userController.changeUsername);
 router.put('/profile/password',    isLoggedIn, userController.changePassword);
 
+// Favorites / wishlist
+router.get('/favorites',              isLoggedIn, userController.getFavorites);
+router.post('/favorites/:listingId',  isLoggedIn, userController.toggleFavorite);
+
 module.exports = router;

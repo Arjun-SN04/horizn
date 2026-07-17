@@ -1,26 +1,117 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import {
+  Search, X, Info, Star, Award, Map as MapIcon, List, ChevronDown, SlidersHorizontal,
+} from 'lucide-react';
 import { listingsAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/animate-ui/components/buttons/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/animate-ui/components/radix/toggle-group';
+import { LikeButton } from '../components/LikeButton';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/animate-ui/components/radix/dropdown-menu';
 
-const FILTERS = [
-  { icon: 'fa-solid fa-fire', label: 'Trending' },
-  { icon: 'fa-solid fa-bed', label: 'Rooms' },
-  { icon: 'fa-solid fa-mountain-city', label: 'Iconic City' },
-  { icon: 'fa-solid fa-mountain', label: 'Mountains' },
-  { icon: 'fa-brands fa-fort-awesome', label: 'Castles' },
-  { icon: 'fa-solid fa-person-swimming', label: 'Amazing Pools' },
-  { icon: 'fa-solid fa-campground', label: 'Camping' },
-  { icon: 'fa-solid fa-cow', label: 'Farm' },
-  { icon: 'fa-solid fa-snowflake', label: 'Arctic' },
+const CATEGORIES = [
+  'Trending', 'Rooms', 'Iconic City', 'Mountains', 'Castles',
+  'Amazing Pools', 'Camping', 'Farm', 'Arctic',
 ];
+
+const SORTS = [
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'price-asc', label: 'Price: low to high' },
+  { value: 'price-desc', label: 'Price: high to low' },
+  { value: 'rating-desc', label: 'Rating: high to low' },
+  { value: 'most-reviewed', label: 'Most reviewed' },
+];
+
+const MIN_RATINGS = [
+  { value: '', label: 'Any rating' },
+  { value: '4.5', label: '4.5+' },
+  { value: '4.8', label: '4.8+' },
+];
+
+const GUEST_FAVORITE_THRESHOLD = 4.8;
+const PAGE_SIZE = 8;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+const getAvgRating = (listing) => listing.reviews?.length
+  ? listing.reviews.reduce((s, r) => s + (r.rating || 0), 0) / listing.reviews.length
+  : null;
+
+const ListingsMap = ({ listings }) => {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !containerRef.current || mapRef.current) return;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    mapRef.current = new mapboxgl.Map({
+      container: containerRef.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [78.9629, 20.5937],
+      zoom: 4,
+    });
+    return () => { mapRef.current?.remove(); mapRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    const withCoords = listings.filter((l) => l.geometry?.coordinates);
+    if (!withCoords.length) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    withCoords.forEach((listing) => {
+      const el = document.createElement('div');
+      el.style.cssText = 'background:#ba0036;color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:9999px;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;white-space:nowrap;';
+      el.textContent = `$${listing.price.toLocaleString('en-US')}`;
+      el.addEventListener('click', () => navigate(`/listings/${listing._id}`));
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat(listing.geometry.coordinates)
+        .addTo(map);
+      markersRef.current.push(marker);
+      bounds.extend(listing.geometry.coordinates);
+    });
+
+    if (withCoords.length > 1) map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+    else map.flyTo({ center: withCoords[0].geometry.coordinates, zoom: 11 });
+  }, [listings, navigate]);
+
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-surface-container-low text-on-surface-variant text-sm">
+        Map unavailable — Mapbox token not configured
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="w-full h-full" />;
+};
 
 export const ListingsIndex = () => {
   const [listings, setListings] = useState([]);
   const [liveQuery, setLiveQuery] = useState('');
-  const [displayTax, setDisplayTax] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('');
+  const [sortBy, setSortBy] = useState('recommended');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [minRating, setMinRating] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [mapOpen, setMapOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,143 +130,283 @@ export const ListingsIndex = () => {
     finally { setIsLoading(false); }
   };
 
-  const filteredListings = liveQuery.trim()
-    ? listings.filter(l => {
-        const q = liveQuery.toLowerCase();
-        return l.location?.toLowerCase().includes(q) || l.country?.toLowerCase().includes(q) || l.title?.toLowerCase().includes(q);
-      })
-    : listings;
+  const filteredListings = useMemo(() => {
+    let result = listings;
 
-  const formatPrice = (p) => p.toLocaleString('en-IN');
-  const getTax = (p) => (p * 1.18).toFixed(0);
+    if (liveQuery.trim()) {
+      const q = liveQuery.toLowerCase();
+      result = result.filter(l =>
+        l.location?.toLowerCase().includes(q) || l.country?.toLowerCase().includes(q) || l.title?.toLowerCase().includes(q));
+    }
+
+    if (activeCategory) {
+      const q = activeCategory.toLowerCase();
+      result = result.filter(l =>
+        l.title?.toLowerCase().includes(q) || l.description?.toLowerCase().includes(q) || l.location?.toLowerCase().includes(q));
+    }
+
+    const min = parseFloat(minPrice);
+    const max = parseFloat(maxPrice);
+    if (!Number.isNaN(min)) result = result.filter(l => l.price >= min);
+    if (!Number.isNaN(max)) result = result.filter(l => l.price <= max);
+
+    if (minRating) {
+      const threshold = parseFloat(minRating);
+      result = result.filter(l => (getAvgRating(l) || 0) >= threshold);
+    }
+
+    if (sortBy === 'price-asc') result = [...result].sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-desc') result = [...result].sort((a, b) => b.price - a.price);
+    if (sortBy === 'rating-desc') result = [...result].sort((a, b) => (getAvgRating(b) || 0) - (getAvgRating(a) || 0));
+    if (sortBy === 'most-reviewed') result = [...result].sort((a, b) => (b.reviews?.length || 0) - (a.reviews?.length || 0));
+
+    return result;
+  }, [listings, liveQuery, activeCategory, minPrice, maxPrice, minRating, sortBy]);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [liveQuery, activeCategory, minPrice, maxPrice, minRating, sortBy]);
+
+  const visibleListings = filteredListings.slice(0, visibleCount);
+  const activeFilterCount = (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (minRating ? 1 : 0);
+
+  const formatPrice = (p) => p.toLocaleString('en-US');
   const clearSearch = () => { setLiveQuery(''); setSearchParams({}); };
+  const clearFilters = () => { setMinPrice(''); setMaxPrice(''); setMinRating(''); };
 
   const handleCardClick = (e) => {
     if (!user) { e.preventDefault(); navigate('/user/login'); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Filter bar */}
-      <div className="sticky top-16 z-9 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-0.5 overflow-x-auto flex-1 scrollbar-hide">
-            {FILTERS.map((filter, i) => (
-              <button key={i} className="flex flex-col items-center gap-1 px-4 py-3 bg-transparent border-b-2 border-transparent text-gray-400 text-xs font-medium hover:text-gray-700 hover:border-gray-900 transition-all whitespace-nowrap flex-shrink-0">
-                <i className={filter.icon} style={{ fontSize: '16px' }}></i>
-                <span className="text-xs font-medium">{filter.label}</span>
+    <div className="flex flex-col bg-surface min-h-screen">
+      {/* Category filter bar */}
+      <nav className="sticky top-20 z-30 bg-surface border-b border-outline-variant/40">
+        <div className="max-w-7xl mx-auto px-margin-mobile md:px-lg py-2 flex items-center gap-4 overflow-x-auto scrollbar-hide">
+          <div className="relative shrink-0 w-40 sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant size-3.5" />
+            <Input
+              value={liveQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLiveQuery(val);
+                setSearchParams(val.trim() ? { search: val.trim() } : {});
+              }}
+              placeholder="Search stays..."
+              className="h-9 rounded-full bg-surface-container-low border-outline-variant pl-9 pr-7 text-sm"
+            />
+            {liveQuery && (
+              <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
+                <X className="size-3.5" />
               </button>
-            ))}
+            )}
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0 pr-1">
-            {/* Toggle */}
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setDisplayTax(!displayTax)}>
-              <div className="relative w-9 h-5">
-                <div className={`w-9 h-5 rounded-full transition-colors ${displayTax ? 'bg-red-500' : 'bg-gray-200'}`}></div>
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${displayTax ? 'left-4.5' : 'left-0.5'}`}></div>
-              </div>
-              <span className="text-xs text-gray-500 font-medium select-none">Taxes</span>
-            </div>
+          <div className="w-px h-8 bg-outline-variant/60 shrink-0" />
+          <ToggleGroup
+            type="single"
+            className="gap-1"
+            value={activeCategory}
+            onValueChange={(v) => setActiveCategory(v || '')}
+          >
+            {CATEGORIES.map((label) => (
+              <ToggleGroupItem key={label} value={label} className="h-auto px-4 py-2 text-on-surface-variant data-[state=on]:text-on-surface whitespace-nowrap shrink-0 text-sm font-medium">
+                {label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <div className="ml-auto flex items-center gap-3 shrink-0 pl-md">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 border border-outline-variant rounded-xl px-4 py-2 hover:bg-surface-container-low transition-colors text-label-md whitespace-nowrap">
+                  <SlidersHorizontal className="size-4" />
+                  Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-4">
+                <p className="text-sm font-semibold text-on-surface mb-3">Price per night</p>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs">$</span>
+                    <Input type="number" min="0" placeholder="Min" value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)} className="h-9 rounded-lg pl-6 text-sm" />
+                  </div>
+                  <span className="text-on-surface-variant">–</span>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs">$</span>
+                    <Input type="number" min="0" placeholder="Max" value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)} className="h-9 rounded-lg pl-6 text-sm" />
+                  </div>
+                </div>
+                <p className="text-sm font-semibold text-on-surface mb-2">Minimum rating</p>
+                <div className="flex gap-2 mb-1">
+                  {MIN_RATINGS.map((r) => (
+                    <button
+                      key={r.value}
+                      onClick={() => setMinRating(r.value)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${minRating === r.value ? 'bg-primary text-on-primary border-primary' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low'}`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {activeFilterCount > 0 && (
+                  <button onClick={clearFilters} className="mt-3 text-xs text-primary font-semibold hover:underline">
+                    Clear filters
+                  </button>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto w-full px-margin-mobile md:px-lg py-xl">
+        {/* Header row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-xl">
+          <div>
+            <h1 className="font-heading text-headline-lg text-on-surface">
+              {liveQuery ? `Stays in ${liveQuery}` : 'Explore unique stays'}
+            </h1>
+            <p className="text-on-surface-variant">
+              {isLoading ? 'Loading stays…' : `Showing ${filteredListings.length} stay${filteredListings.length !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-lowest border border-outline-variant hover:border-on-surface transition-all whitespace-nowrap">
+                  <span className="text-label-md">Sort: <span className="font-bold">{SORTS.find(s => s.value === sortBy)?.label}</span></span>
+                  <ChevronDown className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {SORTS.map((s) => (
+                  <DropdownMenuItem key={s.value} onSelect={() => setSortBy(s.value)} className="cursor-pointer">
+                    {s.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {user && (
-              <Link to="/listing/new" className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold no-underline rounded-lg whitespace-nowrap shadow-sm hover:shadow-md transition-all">
-                + Add
-              </Link>
+              <Button asChild size="sm" className="rounded-full bg-primary text-on-primary font-bold shadow-sm border-0 whitespace-nowrap">
+                <Link to="/listing/new">+ Add</Link>
+              </Button>
             )}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Search banner */}
         {liveQuery && (
-          <div className="flex items-center gap-2.5 mb-6 px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm">
-            <i className="fa-solid fa-magnifying-glass text-gray-300 text-xs"></i>
-            <span className="text-xs text-gray-500">
-              <strong className="text-gray-900">{filteredListings.length}</strong> result{filteredListings.length !== 1 ? 's' : ''} for "<strong className="text-gray-900">{liveQuery}</strong>"
-            </span>
-            <button onClick={clearSearch} className="ml-auto flex items-center gap-1.5 text-xs text-gray-400 bg-transparent border-0 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100 hover:text-gray-600 transition-all">
-              Clear <i className="fa-solid fa-xmark"></i>
-            </button>
-          </div>
+          <button onClick={clearSearch} className="mb-lg flex items-center gap-1.5 text-body-sm text-on-surface-variant bg-surface-container-low border-0 cursor-pointer px-3 py-1.5 rounded-full hover:bg-surface-container transition-all">
+            <Search className="size-3.5" /> Clear search <X className="size-3.5" />
+          </button>
         )}
 
-        {/* Guest notice */}
         {!user && (
-          <div className="flex items-center gap-2.5 mb-6 px-4 py-3 bg-amber-50 border border-amber-300 rounded-2xl">
-            <i className="fa-solid fa-circle-info text-amber-500 text-sm flex-shrink-0"></i>
-            <span className="text-xs text-amber-900">
-              <Link to="/user/login" className="text-amber-700 font-bold no-underline">Sign in</Link> to view full listing details and make reservations.
+          <div className="flex items-center gap-2.5 mb-xl px-4 py-3 bg-tertiary/10 border border-tertiary/30 rounded-2xl">
+            <Info className="text-tertiary size-4 shrink-0" />
+            <span className="text-body-sm text-on-surface">
+              <Link to="/user/login" className="text-tertiary font-bold no-underline">Sign in</Link> to view full listing details and make reservations.
             </span>
           </div>
         )}
 
-        {error && <div className="px-4 py-3 bg-red-50 border border-red-300 rounded-2xl text-red-500 text-xs mb-6">{error}</div>}
+        {error && <div className="px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-2xl text-destructive text-sm mb-xl">{error}</div>}
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-gutter gap-y-xl">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl overflow-hidden">
-                <div className="h-56 bg-gray-200 animate-pulse"></div>
-                <div className="p-4">
-                  <div className="h-3.5 bg-gray-200 rounded-full w-3/4 mb-2.5 animate-pulse"></div>
-                  <div className="h-3 bg-gray-100 rounded-full w-1/2 animate-pulse"></div>
-                </div>
+              <div key={i}>
+                <Skeleton className="aspect-4/3 w-full rounded-xl mb-3" />
+                <Skeleton className="h-3.5 w-3/4 mb-2.5 rounded-full" />
+                <Skeleton className="h-3 w-1/2 rounded-full" />
               </div>
             ))}
           </div>
         ) : filteredListings.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-700 mb-2">No listings found</h3>
-            <p className="text-sm text-gray-400 mb-6">Try a different location or browse everything</p>
-            <button onClick={clearSearch} className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold border-0 rounded-lg cursor-pointer">
-              View all listings
-            </button>
+            <h3 className="text-lg font-bold text-on-surface mb-2">No stays found</h3>
+            <p className="text-sm text-on-surface-variant mb-6">Try a different location, category, or price range</p>
+            <Button onClick={() => { clearSearch(); setActiveCategory(''); clearFilters(); }} className="rounded-full bg-primary text-on-primary font-bold border-0">
+              View all stays
+            </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {filteredListings.map((listing) => (
-              <Link key={listing._id} to={`/listings/${listing._id}`} onClick={handleCardClick}
-                className="no-underline text-inherit block">
-                <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 transition-all hover:shadow-lg hover:border-gray-200 hover:-translate-y-1">
-                  {/* Image */}
-                  <div className="relative overflow-hidden h-56">
-                    <img src={listing.image} alt={listing.title} className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
-                    onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
-                    onMouseLeave={e => e.target.style.transform = 'scale(1)'} />
-                    {!user && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-opacity hover:bg-black/5 hover:opacity-100">
-                        <div className="flex items-center gap-1.5 bg-white px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-700 shadow-md">
-                          <i className="fa-solid fa-lock text-red-500 text-xs"></i>
-                          Sign in to view
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-gutter gap-y-xl">
+              {visibleListings.map((listing) => {
+                const avgRating = getAvgRating(listing);
+                const isGuestFavorite = avgRating !== null && avgRating >= GUEST_FAVORITE_THRESHOLD;
+                return (
+                  <Link key={listing._id} to={`/listings/${listing._id}`} onClick={handleCardClick} className="group no-underline text-inherit block">
+                    <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-3 shadow-sm group-hover:shadow-lg transition-shadow">
+                      <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <LikeButton
+                        listingId={listing._id}
+                        className="absolute top-3 right-3 text-white drop-shadow-md hover:scale-110 transition-transform"
+                        iconClassName="size-5"
+                      />
+                      {isGuestFavorite && (
+                        <div className="absolute top-3 left-3 flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1 rounded-lg text-xs font-bold text-on-surface shadow-sm">
+                          <Award className="size-3 text-primary" /> Guest favorite
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  {/* Info */}
-                  <div className="p-3.5">
-                    {/* Title */}
-                    <p className="font-bold text-sm text-gray-900 mb-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                      {listing.title}
-                    </p>
-                    <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
-                      <i className="fa-solid fa-location-dot text-red-500 text-xs"></i>
-                      {listing.location}, {listing.country}
-                    </p>
-                    <div className="border-t border-gray-100 pt-2.5">
-                      <span className="font-black text-base text-gray-900">₹{formatPrice(listing.price)}</span>
-                      <span className="text-xs text-gray-400 ml-0.5">/ night</span>
-                      {displayTax && (
-                        <p className="text-xs text-gray-400 mt-0.5 mb-0">₹{getTax(listing.price)} with GST</p>
+                      )}
+                      {!user && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 group-hover:bg-black/10 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-surface-container-lowest px-3.5 py-2 rounded-xl text-xs font-semibold text-on-surface shadow-md">
+                            Sign in to view
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-heading text-body-lg font-bold text-on-surface">{listing.location}, {listing.country}</h3>
+                        <p className="text-on-surface-variant text-body-sm mb-0 truncate">{listing.title}</p>
+                        <p className="mt-2 text-on-surface font-bold text-body-md">
+                          ${formatPrice(listing.price)} <span className="font-normal text-on-surface-variant">night</span>
+                        </p>
+                      </div>
+                      {avgRating !== null && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Star className="size-3.5 fill-primary text-primary" />
+                          <span className="text-body-sm font-semibold">{avgRating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {visibleCount < filteredListings.length && (
+              <div className="mt-16 text-center space-y-3">
+                <p className="text-on-surface font-heading font-bold">Continue exploring amazing stays</p>
+                <button
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="px-8 py-3.5 bg-on-surface text-surface rounded-xl text-label-md hover:opacity-90 transition-all active:scale-95"
+                >
+                  Show more
+                </button>
+              </div>
+            )}
+          </>
         )}
-      </div>
+      </main>
+
+      {/* Full-screen map overlay */}
+      {mapOpen && (
+        <div className="fixed inset-x-0 bottom-0 top-20 z-40 bg-surface flex flex-col">
+          <ListingsMap listings={filteredListings} />
+        </div>
+      )}
+
+      {/* Map/list toggle FAB */}
+      <button
+        onClick={() => setMapOpen((v) => !v)}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-inverse-surface text-inverse-on-surface px-6 py-3 rounded-full flex items-center gap-2 shadow-2xl z-50 active:scale-95 transition-transform"
+      >
+        <span className="font-bold text-body-sm">{mapOpen ? 'Show list' : 'Show map'}</span>
+        {mapOpen ? <List className="size-4" /> : <MapIcon className="size-4" />}
+      </button>
     </div>
   );
 };

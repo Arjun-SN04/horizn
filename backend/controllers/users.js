@@ -236,3 +236,32 @@ module.exports.changePassword = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+module.exports.getFavorites = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('favorites');
+        res.json({ success: true, favorites: user.favorites });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports.toggleFavorite = async (req, res) => {
+    try {
+        const { listingId } = req.params;
+        const user = await User.findById(req.user._id);
+        const index = user.favorites.findIndex((id) => id.equals(listingId));
+        let favorited;
+        if (index === -1) {
+            user.favorites.push(listingId);
+            favorited = true;
+        } else {
+            user.favorites.splice(index, 1);
+            favorited = false;
+        }
+        await user.save();
+        res.json({ success: true, favorited, favorites: user.favorites });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

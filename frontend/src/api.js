@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// v2 — routes updated to /listing/:id
-// In production: VITE_API_URL = your Vercel backend URL
+// In production: VITE_API_URL = your deployed backend URL
 // In development: Vite proxy handles /api → http://localhost:3000
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}`
@@ -25,7 +24,9 @@ export const authAPI = {
   getProfile: () => api.get('/user/profile'),
   updateProfile: (profileData) => api.put('/user/profile', profileData),
   changeUsername: (newUsername) => api.put('/user/profile/username', { newUsername }),
-  changePassword: (passwordData) => api.put('/user/profile/password', passwordData)
+  changePassword: (passwordData) => api.put('/user/profile/password', passwordData),
+  getFavorites: () => api.get('/user/favorites'),
+  toggleFavorite: (listingId) => api.post(`/user/favorites/${listingId}`)
 };
 
 // Listings API calls
@@ -46,6 +47,13 @@ export const listingsAPI = {
 export const reviewsAPI = {
   addReview: (listingId, reviewData) => api.post(`/listing/${listingId}/review`, reviewData),
   deleteReview: (listingId, reviewId) => api.delete(`/listing/${listingId}/review/${reviewId}`)
+};
+
+// Notifications API calls
+export const notificationsAPI = {
+  getAll: () => api.get('/notifications'),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
 };
 
 export default api;

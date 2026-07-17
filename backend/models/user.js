@@ -35,7 +35,11 @@ const UserSchema = new Schema({
         country: {
             type: String,
             default: "",
-        }
+        },
+        favorites: [{
+            type: Schema.Types.ObjectId,
+            ref: "listing",
+        }]
     });
 
 UserSchema.plugin(passportLocalMongoose);

@@ -83,6 +83,6 @@ module.exports.deleteListing = async (req, res) => {
 };
 
 module.exports.getAllListings = async (req, res) => {
-  const allListings = await Listing.find({});
+  const allListings = await Listing.find({}).populate('reviews');
   res.json({ allListings });
 };

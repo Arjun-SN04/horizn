@@ -2,7 +2,7 @@
 
 > A full-stack travel listing platform to discover, list, and review unique stays worldwide.
 
-![Node](https://img.shields.io/badge/Node.js-22.x-green) ![React](https://img.shields.io/badge/React-18-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green) ![Deployed](https://img.shields.io/badge/Deployed-Vercel-black)
+![Node](https://img.shields.io/badge/Node.js-22.x-green) ![React](https://img.shields.io/badge/React-18-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)
 
 ---
 
@@ -46,19 +46,19 @@ npm run dev
 
 **`backend/.env`**
 ```env
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
 MONGODB_ATLAS_URL=
 SECRET=
 MAP_BOX_TOKEN=
-CLOUD_NAME=
-CLOUD_API_KEY=
-CLOUD_API_SECRET=
-FRONTEND_URL=http://localhost:5173
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 ```
 
-**`frontend/.env`**
+**`frontend/.env`** (optional — not needed for local dev, Vite proxies `/api` to `localhost:3000`)
 ```env
-VITE_API_URL=http://localhost:3000
-VITE_MAPBOX_TOKEN=
+VITE_API_URL=
 ```
 
 ---
@@ -78,7 +78,3 @@ VITE_MAPBOX_TOKEN=
 
 ## 👨‍💻 Author
 **Arjun S Nair** · [GitHub](https://github.com/GithubArjun) · [LinkedIn](https://linkedin.com/in/ArjunSN)
-
----
-
-Want me to save this to your project now?

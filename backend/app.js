@@ -27,8 +27,6 @@ function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return true;
-  // Allow all Vercel preview deployments
-  if (/\.vercel\.app$/.test(origin)) return true;
   return false;
 }
 
@@ -50,7 +48,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── TRUST PROXY (required for secure cookies on Vercel) ──────────────
+// ── TRUST PROXY (required for secure cookies behind a reverse proxy) ──
 app.set('trust proxy', 1);
 
 // ── BODY PARSERS ──────────────────────────────────────────────────────
@@ -108,13 +106,15 @@ passport.deserializeUser(User.deserializeUser());
 app.use(express.static(path.join(__dirname, '/public')));
 
 // ── ROUTES ────────────────────────────────────────────────────────────
-const listingRouter = require('./routes/listing');
-const reviewRoutes  = require('./routes/review');
-const userRoutes    = require('./routes/user');
+const listingRouter       = require('./routes/listing');
+const reviewRoutes        = require('./routes/review');
+const userRoutes          = require('./routes/user');
+const notificationRoutes  = require('./routes/notification');
 
 app.use('/listing',            listingRouter);
 app.use('/listing/:id/review', reviewRoutes);
 app.use('/user',               userRoutes);
+app.use('/notifications',      notificationRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
