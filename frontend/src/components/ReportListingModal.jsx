@@ -34,21 +34,21 @@ export const ReportListingModal = ({ open, onClose, listingId }) => {
 
   return (
     <Modal open={open} onClose={handleClose} title="Report this listing" maxWidthClass="max-w-md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+        <div className="w-full flex flex-col gap-2">
           {REPORT_REASONS.map((r) => (
             <label
               key={r.value}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-all text-sm ${reason === r.value ? 'border-primary bg-primary/10 text-on-surface' : 'border-outline-variant text-on-surface-variant hover:border-primary/50'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-all text-sm ${reason === r.value ? 'border-primary bg-primary/10 text-on-surface font-medium' : 'border-outline-variant text-on-surface-variant hover:border-primary/50'}`}
             >
               <input
                 type="radio"
                 name="reason"
-                className="accent-primary"
+                className="accent-primary shrink-0"
                 checked={reason === r.value}
                 onChange={() => { setReason(r.value); setError(''); }}
               />
-              {r.label}
+              <span className="flex-1">{r.label}</span>
             </label>
           ))}
         </div>
