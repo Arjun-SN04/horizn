@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../api';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 
 const FavoritesContext = createContext();
 
 export const FavoritesProvider = ({ children }) => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [favorites, setFavorites] = useState([]);
 
@@ -33,6 +35,11 @@ export const FavoritesProvider = ({ children }) => {
     try {
       const res = await authAPI.toggleFavorite(listingId);
       fetchFavorites(); // refresh the fully-populated list for the wishlist view
+      if (res.data.favorited) {
+        addToast('celebrate', `Added to your wishlist · ${res.data.favorites.length} saved`, 2200);
+      } else {
+        addToast('success', 'Removed from wishlist', 1800);
+      }
       return res.data.favorited;
     } catch {
       // revert on failure

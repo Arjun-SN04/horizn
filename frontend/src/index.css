@@ -221,7 +221,7 @@
     --tertiary-fixed: #ffdeac;
     --error: #ffb4a9;
     --outline: #a08182;
-    --on-primary: #690021;
+    --on-primary: #24080d;
     --secondary-container: #005049;
     --surface-tint: #ffb2b6;
     --surface-dim: #141313;
@@ -244,16 +244,16 @@
     --inverse-surface: #e5e2e1;
     --surface-bright: #3a3737;
     --tertiary-fixed-dim: #ffba35;
-    --on-primary-container: #ffdada;
+    --on-primary-container: #f2e0de;
     --outline-variant: #5c3f41;
     --inverse-primary: #ba0036;
     --tertiary-container: #ffba35;
     --primary-fixed-dim: #ffb2b6;
     --on-primary-fixed: #40000d;
-    --primary: #ffb2b6;
+    --primary: #a97079;
     --secondary-fixed: #7af7e8;
-    --on-surface-variant: #e5bdbe;
-    --primary-container: #920029;
+    --on-surface-variant: #c4afb0;
+    --primary-container: #562931;
     --on-tertiary-fixed: #281900;
     --tertiary: #ffba35;
     --on-secondary: #00382f;
@@ -360,4 +360,61 @@ html {
   .animate-page-fade {
     animation: none;
   }
+}
+
+/* ── Listings map markers ── */
+.map-price-pin {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 2px solid var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.map-price-pin:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  z-index: 1000 !important;
+}
+
+.map-cluster-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  font-size: 13px;
+  border: 3px solid var(--surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.map-cluster-badge:hover {
+  transform: scale(1.08);
+}
+
+.maplibregl-popup .maplibregl-popup-content {
+  background: var(--surface-container-lowest, var(--surface));
+  color: var(--on-surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--outline-variant);
 }

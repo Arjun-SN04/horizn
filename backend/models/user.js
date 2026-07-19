@@ -39,8 +39,12 @@ const UserSchema = new Schema({
         favorites: [{
             type: Schema.Types.ObjectId,
             ref: "listing",
-        }]
-    });
+        }],
+        isAdmin: {
+            type: Boolean,
+            default: false,
+        }
+    }, { timestamps: true });
 
 UserSchema.plugin(passportLocalMongoose);
 

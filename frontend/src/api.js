@@ -31,7 +31,7 @@ export const authAPI = {
 
 // Listings API calls
 export const listingsAPI = {
-  getAllListings: () => api.get('/listing'),
+  getAllListings: (params) => api.get('/listing', { params }),
   getListingById: (id) => api.get(`/listing/${id}`),
   createListing: (formData) => api.post('/listing', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -41,6 +41,26 @@ export const listingsAPI = {
   }),
   deleteListing: (id) => api.delete(`/listing/${id}`),
   getEditPage: (id) => api.get(`/listing/${id}/edit`)
+};
+
+// Booking API calls
+export const bookingsAPI = {
+  getBookedDates: (listingId) => api.get(`/listing/${listingId}/booking`),
+  createBooking: (listingId, data) => api.post(`/listing/${listingId}/booking`, { booking: data }),
+  getMyBookings: () => api.get('/bookings/mine'),
+  getHostBookings: () => api.get('/bookings/hosting'),
+  cancelBooking: (bookingId) => api.delete(`/bookings/${bookingId}`),
+};
+
+// Report API calls
+export const reportsAPI = {
+  reportListing: (listingId, data) => api.post(`/listing/${listingId}/report`, { report: data }),
+};
+
+// Admin API calls
+export const adminAPI = {
+  getReports: () => api.get('/admin/reports'),
+  updateReportStatus: (id, status) => api.patch(`/admin/reports/${id}`, { status }),
 };
 
 // Reviews API calls

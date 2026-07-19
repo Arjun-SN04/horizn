@@ -7,14 +7,14 @@
 ---
 
 ## 🧭 Overview
-Horizn is a MERN stack web app where users can browse, create, and review travel property listings. Features include interactive Mapbox maps, Cloudinary image uploads, and full authentication.
+Horizn is a MERN stack web app where users can browse, create, and review travel property listings. Features include interactive Leaflet maps, Cloudinary image uploads, and full authentication.
 
 ---
 
 ## ✨ Features
 - 🔐 Secure auth with Passport.js and session persistence
 - 🏠 Full CRUD for listings with image uploads
-- 🗺️ Mapbox GL JS with live forward geocoding
+- 🗺️ Leaflet + OpenStreetMap with live forward geocoding (Nominatim)
 - ⭐ Reviews & star ratings (owners can't review own listings)
 - 👤 Editable user profiles
 - 🔒 Owner-only edit/delete guards
@@ -28,7 +28,7 @@ Horizn is a MERN stack web app where users can browse, create, and review travel
 | Backend | Node.js, Express.js, MongoDB, Mongoose |
 | Auth | Passport.js, express-session, connect-mongo |
 | Storage | Cloudinary, Multer |
-| Maps | Mapbox GL JS, Mapbox SDK (geocoding) |
+| Maps | Leaflet, OpenStreetMap tiles, Nominatim (geocoding) |
 
 ---
 
@@ -50,7 +50,6 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 MONGODB_ATLAS_URL=
 SECRET=
-MAP_BOX_TOKEN=
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=

@@ -91,7 +91,8 @@ module.exports.getUserProfile = async (req, res) => {
                 address: user.address || '',
                 city: user.city || '',
                 country: user.country || '',
-                profilePicture: user.profilePicture || ''
+                profilePicture: user.profilePicture || '',
+                createdAt: user.createdAt
             }
         });
     } catch (error) {

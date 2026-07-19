@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import Supercluster from 'supercluster';
 import {
   Search, X, Info, Star, Award, Map as MapIcon, List, ChevronDown, SlidersHorizontal,
 } from 'lucide-react';
 import { listingsAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { AMENITIES } from '../lib/amenities';
+import { loadEnglishStyle } from '../lib/mapStyle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/animate-ui/components/buttons/button';
@@ -37,65 +40,141 @@ const MIN_RATINGS = [
 
 const GUEST_FAVORITE_THRESHOLD = 4.8;
 const PAGE_SIZE = 8;
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const getAvgRating = (listing) => listing.reviews?.length
   ? listing.reviews.reduce((s, r) => s + (r.rating || 0), 0) / listing.reviews.length
   : null;
 
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
 const ListingsMap = ({ listings }) => {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const clusterIndexRef = useRef(new Supercluster({ radius: 50, maxZoom: 14 }));
   const markersRef = useRef([]);
+  const listingsRef = useRef(listings);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!MAPBOX_TOKEN || !containerRef.current || mapRef.current) return;
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    mapRef.current = new mapboxgl.Map({
-      container: containerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [78.9629, 20.5937],
-      zoom: 4,
-    });
-    return () => { mapRef.current?.remove(); mapRef.current = null; };
-  }, []);
+  useEffect(() => { listingsRef.current = listings; }, [listings]);
 
-  useEffect(() => {
+  const rebuildIndex = () => {
+    const withCoords = listingsRef.current.filter((l) => l.geometry?.coordinates);
+    clusterIndexRef.current = new Supercluster({ radius: 50, maxZoom: 14 });
+    clusterIndexRef.current.load(withCoords.map((listing) => ({
+      type: 'Feature',
+      properties: { listing },
+      geometry: { type: 'Point', coordinates: listing.geometry.coordinates },
+    })));
+    return withCoords;
+  };
+
+  const renderMarkers = () => {
     const map = mapRef.current;
     if (!map) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    const withCoords = listings.filter((l) => l.geometry?.coordinates);
-    if (!withCoords.length) return;
+    const b = map.getBounds();
+    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    const zoom = Math.round(map.getZoom());
+    const clusters = clusterIndexRef.current.getClusters(bbox, zoom);
 
-    const bounds = new mapboxgl.LngLatBounds();
-    withCoords.forEach((listing) => {
+    clusters.forEach((feature) => {
+      const [lng, lat] = feature.geometry.coordinates;
       const el = document.createElement('div');
-      el.style.cssText = 'background:#ba0036;color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:9999px;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;white-space:nowrap;';
+
+      if (feature.properties.cluster) {
+        const count = feature.properties.point_count;
+        el.className = 'map-cluster-badge';
+        el.textContent = count;
+        el.addEventListener('click', () => {
+          const expansionZoom = Math.min(
+            clusterIndexRef.current.getClusterExpansionZoom(feature.properties.cluster_id),
+            20
+          );
+          map.flyTo({ center: [lng, lat], zoom: expansionZoom, duration: 500 });
+        });
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map);
+        markersRef.current.push(marker);
+        return;
+      }
+
+      const listing = feature.properties.listing;
+      el.className = 'map-price-pin';
       el.textContent = `$${listing.price.toLocaleString('en-US')}`;
-      el.addEventListener('click', () => navigate(`/listings/${listing._id}`));
+      el.addEventListener('click', () => navigate(`/listings/${listing._id}`, { state: { fromMap: true } }));
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat(listing.geometry.coordinates)
-        .addTo(map);
+      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14 })
+        .setHTML(`<strong>${escapeHtml(listing.title)}</strong><br/>${escapeHtml(listing.location)}, ${escapeHtml(listing.country)}`);
+      el.addEventListener('mouseenter', () => popup.setLngLat([lng, lat]).addTo(map));
+      el.addEventListener('mouseleave', () => popup.remove());
+
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map);
       markersRef.current.push(marker);
-      bounds.extend(listing.geometry.coordinates);
     });
+  };
 
-    if (withCoords.length > 1) map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
-    else map.flyTo({ center: withCoords[0].geometry.coordinates, zoom: 11 });
-  }, [listings, navigate]);
+  const fitToListings = (withCoords) => {
+    const map = mapRef.current;
+    if (!map || !withCoords.length) return;
+    if (withCoords.length > 1) {
+      const bounds = withCoords.reduce(
+        (b, l) => b.extend(l.geometry.coordinates),
+        new maplibregl.LngLatBounds(withCoords[0].geometry.coordinates, withCoords[0].geometry.coordinates)
+      );
+      map.fitBounds(bounds, { padding: 60, maxZoom: 12 });
+    } else {
+      map.flyTo({ center: withCoords[0].geometry.coordinates, zoom: 11 });
+    }
+  };
 
-  if (!MAPBOX_TOKEN) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-surface-container-low text-on-surface-variant text-sm">
-        Map unavailable — Mapbox token not configured
-      </div>
-    );
-  }
+  // Mount the map once.
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    let cancelled = false;
+
+    (async () => {
+      const style = await loadEnglishStyle();
+      if (cancelled || !containerRef.current) return;
+
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style,
+        center: [78.9629, 20.5937],
+        zoom: 4,
+      });
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+      map.on('moveend', renderMarkers);
+      mapRef.current = map;
+      map.once('load', () => {
+        const withCoords = rebuildIndex();
+        fitToListings(withCoords);
+        renderMarkers();
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-index and re-frame whenever the filtered listing set changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.loaded()) return; // initial mount's 'load' handler covers this case
+    const withCoords = rebuildIndex();
+    fitToListings(withCoords);
+    renderMarkers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listings]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 };
@@ -108,14 +187,16 @@ export const ListingsIndex = () => {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [minRating, setMinRating] = useState('');
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [mapOpen, setMapOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
+  const [mapOpen, setMapOpen] = useState(() => searchParams.get('view') === 'map');
+  const loadMoreRef = useRef(null);
 
   useEffect(() => { fetchListings(); }, []);
   useEffect(() => { setLiveQuery(searchQuery); }, [searchQuery]);
@@ -155,22 +236,45 @@ export const ListingsIndex = () => {
       result = result.filter(l => (getAvgRating(l) || 0) >= threshold);
     }
 
+    if (selectedAmenities.length) {
+      result = result.filter(l => selectedAmenities.every(a => l.amenities?.includes(a)));
+    }
+
     if (sortBy === 'price-asc') result = [...result].sort((a, b) => a.price - b.price);
     if (sortBy === 'price-desc') result = [...result].sort((a, b) => b.price - a.price);
     if (sortBy === 'rating-desc') result = [...result].sort((a, b) => (getAvgRating(b) || 0) - (getAvgRating(a) || 0));
     if (sortBy === 'most-reviewed') result = [...result].sort((a, b) => (b.reviews?.length || 0) - (a.reviews?.length || 0));
 
     return result;
-  }, [listings, liveQuery, activeCategory, minPrice, maxPrice, minRating, sortBy]);
+  }, [listings, liveQuery, activeCategory, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
 
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [liveQuery, activeCategory, minPrice, maxPrice, minRating, sortBy]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [liveQuery, activeCategory, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
+
+  const hasMore = visibleCount < filteredListings.length;
+
+  useEffect(() => {
+    if (!hasMore || !loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filteredListings.length));
+        }
+      },
+      { rootMargin: '600px' }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, filteredListings.length]);
 
   const visibleListings = filteredListings.slice(0, visibleCount);
-  const activeFilterCount = (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (minRating ? 1 : 0);
+  const activeFilterCount = (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (minRating ? 1 : 0) + selectedAmenities.length;
 
   const formatPrice = (p) => p.toLocaleString('en-US');
   const clearSearch = () => { setLiveQuery(''); setSearchParams({}); };
-  const clearFilters = () => { setMinPrice(''); setMaxPrice(''); setMinRating(''); };
+  const clearFilters = () => { setMinPrice(''); setMaxPrice(''); setMinRating(''); setSelectedAmenities([]); };
+  const toggleAmenityFilter = (value) => {
+    setSelectedAmenities(prev => prev.includes(value) ? prev.filter(a => a !== value) : [...prev, value]);
+  };
 
   const handleCardClick = (e) => {
     if (!user) { e.preventDefault(); navigate('/user/login'); }
@@ -220,7 +324,7 @@ export const ListingsIndex = () => {
                   Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-4">
+              <DropdownMenuContent align="end" className="w-64 p-4 max-h-[70vh] overflow-y-auto">
                 <p className="text-sm font-semibold text-on-surface mb-3">Price per night</p>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="relative flex-1">
@@ -246,6 +350,22 @@ export const ListingsIndex = () => {
                       {r.label}
                     </button>
                   ))}
+                </div>
+                <p className="text-sm font-semibold text-on-surface mb-2 mt-4">Amenities</p>
+                <div className="flex flex-col gap-1.5 mb-1">
+                  {AMENITIES.map(({ value, label, icon: Icon }) => {
+                    const checked = selectedAmenities.includes(value);
+                    return (
+                      <label
+                        key={value}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg border cursor-pointer transition-all text-xs ${checked ? 'border-primary bg-primary/10 text-on-surface' : 'border-outline-variant text-on-surface-variant hover:border-primary/50'}`}
+                      >
+                        <input type="checkbox" className="hidden" checked={checked} onChange={() => toggleAmenityFilter(value)} />
+                        <Icon className="size-3.5 shrink-0" />
+                        {label}
+                      </label>
+                    );
+                  })}
                 </div>
                 {activeFilterCount > 0 && (
                   <button onClick={clearFilters} className="mt-3 text-xs text-primary font-semibold hover:underline">
@@ -357,9 +477,9 @@ export const ListingsIndex = () => {
                         </div>
                       )}
                     </div>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-heading text-body-lg font-bold text-on-surface">{listing.location}, {listing.country}</h3>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-heading text-body-lg font-bold text-on-surface truncate">{listing.location}, {listing.country}</h3>
                         <p className="text-on-surface-variant text-body-sm mb-0 truncate">{listing.title}</p>
                         <p className="mt-2 text-on-surface font-bold text-body-md">
                           ${formatPrice(listing.price)} <span className="font-normal text-on-surface-variant">night</span>
@@ -377,15 +497,10 @@ export const ListingsIndex = () => {
               })}
             </div>
 
-            {visibleCount < filteredListings.length && (
-              <div className="mt-16 text-center space-y-3">
-                <p className="text-on-surface font-heading font-bold">Continue exploring amazing stays</p>
-                <button
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                  className="px-8 py-3.5 bg-on-surface text-surface rounded-xl text-label-md hover:opacity-90 transition-all active:scale-95"
-                >
-                  Show more
-                </button>
+            {hasMore && (
+              <div ref={loadMoreRef} className="mt-16 flex items-center justify-center gap-2.5 text-on-surface-variant">
+                <div className="w-4 h-4 border-2 border-surface-container-high border-t-primary rounded-full animate-spin" />
+                <span className="text-label-md">Loading more stays…</span>
               </div>
             )}
           </>
@@ -401,7 +516,13 @@ export const ListingsIndex = () => {
 
       {/* Map/list toggle FAB */}
       <button
-        onClick={() => setMapOpen((v) => !v)}
+        onClick={() => {
+          const next = !mapOpen;
+          setMapOpen(next);
+          const params = new URLSearchParams(searchParams);
+          if (next) params.set('view', 'map'); else params.delete('view');
+          setSearchParams(params, { replace: true });
+        }}
         className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-inverse-surface text-inverse-on-surface px-6 py-3 rounded-full flex items-center gap-2 shadow-2xl z-50 active:scale-95 transition-transform"
       >
         <span className="font-bold text-body-sm">{mapOpen ? 'Show list' : 'Show map'}</span>

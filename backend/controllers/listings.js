@@ -1,7 +1,5 @@
 const Listing = require('../models/listing');
-const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
-const mapboxToken = process.env.MAP_BOX_TOKEN;
-const geocodingClient = mbxGeocoding({ accessToken: mapboxToken });
+const { geocodeLocation } = require('../utils/geocode');
 
 module.exports.getShowPage = async (req, res, next) => {
   const { id } = req.params;
@@ -33,23 +31,22 @@ module.exports.getNewRender = async (req, res) => {
 };
 
 module.exports.createNewListing = async (req, res, next) => {
-  if (!req.file) {
+  const coverFile = req.files?.['lististing[image]']?.[0];
+  if (!coverFile) {
     return res.status(400).json({ success: false, message: 'Image is required' });
   }
+  const galleryFiles = req.files?.['lististing[images]'] || [];
 
-  const geoResponse = await geocodingClient
-    .forwardGeocode({ query: req.body.lististing.location, limit: 1 })
-    .send();
-
-  const features = geoResponse.body.features;
-  if (!features || features.length === 0) {
+  const geometry = await geocodeLocation(`${req.body.lististing.location}, ${req.body.lististing.country}`);
+  if (!geometry) {
     return res.status(400).json({ success: false, message: 'Could not geocode the given location' });
   }
 
   const newListing = new Listing(req.body.lististing);
   newListing.owner    = req.user._id;
-  newListing.image    = req.file.path;
-  newListing.geometry = features[0].geometry;
+  newListing.image    = coverFile.path;
+  newListing.images   = galleryFiles.map((f) => f.path);
+  newListing.geometry = geometry;
   await newListing.save();
 
   res.json({ success: true, message: 'Successfully created a new listing', listing: newListing });
@@ -66,10 +63,24 @@ module.exports.updateListing = async (req, res) => {
     return res.status(404).json({ success: false, message: 'Listing not found' });
   }
 
-  if (req.file) {
-    listing.image = req.file.path;
-    await listing.save();
+  const coverFile = req.files?.['lististing[image]']?.[0];
+  if (coverFile) {
+    listing.image = coverFile.path;
   }
+
+  if (req.body.removeImages) {
+    try {
+      const toRemove = new Set(JSON.parse(req.body.removeImages));
+      listing.images = listing.images.filter((url) => !toRemove.has(url));
+    } catch { /* ignore malformed payload */ }
+  }
+
+  const galleryFiles = req.files?.['lististing[images]'] || [];
+  if (galleryFiles.length) {
+    listing.images = [...listing.images, ...galleryFiles.map((f) => f.path)];
+  }
+
+  await listing.save();
   res.json({ success: true, message: 'Successfully updated the listing', listing });
 };
 
@@ -83,6 +94,7 @@ module.exports.deleteListing = async (req, res) => {
 };
 
 module.exports.getAllListings = async (req, res) => {
-  const allListings = await Listing.find({}).populate('reviews');
+  const filter = req.query.owner ? { owner: req.query.owner } : {};
+  const allListings = await Listing.find(filter).populate('reviews');
   res.json({ allListings });
 };

@@ -19,8 +19,15 @@ const Listing = require('./models/listing');
 module.exports.isOwner = async (req, res, next) => {
     let { id } = req.params;
     let listing = await Listing.findById(id);
-    if (!listing.owner.equals(req.user._id)) {
+    if (!listing.owner.equals(req.user._id) && !req.user.isAdmin) {
         return res.status(403).json({ success: false, message: 'You do not have permission to edit this listing' });
+    }
+    next();
+}
+
+module.exports.isAdmin = (req, res, next) => {
+    if (!req.user?.isAdmin) {
+        return res.status(403).json({ success: false, message: 'Admin access required' });
     }
     next();
 }
@@ -40,6 +47,13 @@ const { listingschema } = require('./schema');
 const ExpressError = require('./utils/ExpressError');
 
 module.exports.validateListing = (req, res, next) => {
+    if (req.body.lististing && typeof req.body.lististing.amenities === 'string') {
+        try {
+            req.body.lististing.amenities = JSON.parse(req.body.lististing.amenities);
+        } catch {
+            req.body.lististing.amenities = [];
+        }
+    }
     let { error } = listingschema.validate(req.body);
     if (error) {
         const msg = error.details.map(el => el.message).join(', ');
@@ -52,10 +66,6 @@ const { userSchema } = require('./schema');
 
 module.exports.validateUser = (req, res, next) => {
     try {
-        console.log('\n📥 VALIDATE USER MIDDLEWARE');
-        console.log('Content-Type:', req.headers['content-type']);
-        console.log('Body:', JSON.stringify(req.body, null, 2));
-
         const { error } = userSchema.validate(req.body, {
             abortEarly: false,
             stripUnknown: false
@@ -63,8 +73,6 @@ module.exports.validateUser = (req, res, next) => {
 
         if (error) {
             const messages = error.details.map(el => el.message);
-            const msg = messages.join(', ');
-            console.log('❌ Validation failed:', msg);
 
             return res.status(400).json({
                 success: false,
@@ -74,10 +82,8 @@ module.exports.validateUser = (req, res, next) => {
             });
         }
 
-        console.log('✅ Validation passed\n');
         next();
     } catch (err) {
-        console.log('❌ Validation middleware error:', err.message);
         return res.status(500).json({
             success: false,
             message: 'Validation error',

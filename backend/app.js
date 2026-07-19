@@ -110,11 +110,19 @@ const listingRouter       = require('./routes/listing');
 const reviewRoutes        = require('./routes/review');
 const userRoutes          = require('./routes/user');
 const notificationRoutes  = require('./routes/notification');
+const bookingRoutes       = require('./routes/booking');
+const myBookingsRoutes    = require('./routes/bookings');
+const reportRoutes        = require('./routes/report');
+const adminRoutes         = require('./routes/admin');
 
-app.use('/listing',            listingRouter);
-app.use('/listing/:id/review', reviewRoutes);
-app.use('/user',               userRoutes);
-app.use('/notifications',      notificationRoutes);
+app.use('/listing',             listingRouter);
+app.use('/listing/:id/review',  reviewRoutes);
+app.use('/listing/:id/booking', bookingRoutes);
+app.use('/listing/:id/report',  reportRoutes);
+app.use('/bookings',            myBookingsRoutes);
+app.use('/user',                userRoutes);
+app.use('/notifications',       notificationRoutes);
+app.use('/admin',               adminRoutes);
 
 // ── HEALTH CHECK ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {

@@ -8,6 +8,32 @@ module.exports.listingschema = Joi.object({
     price:       Joi.number().required().min(0),
     location:    Joi.string().required(),
     country:     Joi.string().required(),
+    guests:      Joi.number().integer().min(1).default(1),
+    bedrooms:    Joi.number().integer().min(1).default(1),
+    bathrooms:   Joi.number().min(0.5).default(1),
+    amenities:   Joi.array().items(Joi.string()).default([]),
+    images:      Joi.array().items(Joi.string()).default([]),
+  }).required(),
+  removeImages: Joi.string().allow('', null),
+});
+
+module.exports.bookingSchema = Joi.object({
+  booking: Joi.object({
+    checkIn:  Joi.date().required().messages({ 'any.required': 'Check-in date is required' }),
+    checkOut: Joi.date().required().greater(Joi.ref('checkIn')).messages({
+      'any.required':    'Check-out date is required',
+      'date.greater':    'Check-out must be after check-in',
+    }),
+    guests: Joi.number().integer().min(1).required().messages({
+      'number.min': 'At least 1 guest is required',
+    }),
+  }).required(),
+});
+
+module.exports.reportSchema = Joi.object({
+  report: Joi.object({
+    reason:  Joi.string().valid('inaccurate', 'inappropriate', 'spam', 'scam', 'other').required(),
+    details: Joi.string().allow('', null).max(1000),
   }).required(),
 });
 

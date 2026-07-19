@@ -5,6 +5,10 @@ const { isLoggedIn, isOwner, validateListing } = require('../middleware');
 const multer = require('multer');
 const { storage } = require('../cloudConfig');
 const upload = multer({ storage });
+const uploadFields = upload.fields([
+  { name: 'lististing[image]', maxCount: 1 },
+  { name: 'lististing[images]', maxCount: 8 },
+]);
 
 const listingControllers = require('../controllers/listings');
 
@@ -17,7 +21,7 @@ router.get('/', wrapAsync(listingControllers.getAllListings));
 router.get('/new', isLoggedIn, wrapAsync(listingControllers.getNewRender));
 
 // Create new listing — PROTECTED
-router.post('/', isLoggedIn, upload.single('lististing[image]'), validateListing, wrapAsync(listingControllers.createNewListing));
+router.post('/', isLoggedIn, uploadFields, validateListing, wrapAsync(listingControllers.createNewListing));
 
 // Show individual listing — PUBLIC
 router.get('/:id', wrapAsync(listingControllers.getShowPage));
@@ -26,7 +30,7 @@ router.get('/:id', wrapAsync(listingControllers.getShowPage));
 router.get('/:id/edit', isLoggedIn, isOwner, wrapAsync(listingControllers.getEditRender));
 
 // Update listing — PROTECTED
-router.patch('/:id', isLoggedIn, isOwner, upload.single('lististing[image]'), validateListing, wrapAsync(listingControllers.updateListing));
+router.patch('/:id', isLoggedIn, isOwner, uploadFields, validateListing, wrapAsync(listingControllers.updateListing));
 
 // Delete listing — PROTECTED
 router.delete('/:id', isLoggedIn, isOwner, wrapAsync(listingControllers.deleteListing));
