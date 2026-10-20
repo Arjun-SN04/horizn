@@ -23,10 +23,25 @@ const ALLOWED_ORIGINS = [
   'http://localhost:4173',
 ];
 
+// FRONTEND_URL may hold several comma-separated URLs.
+const FRONTEND_URLS = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((u) => u.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+// Optional regex for Vercel deployment/preview URLs, e.g.
+// ^https://horizn-og89-[a-z0-9-]+-arjun-sn04s-projects\.vercel\.app$
+let ORIGIN_PATTERN = null;
+if (process.env.CORS_ORIGIN_PATTERN) {
+  try { ORIGIN_PATTERN = new RegExp(process.env.CORS_ORIGIN_PATTERN); }
+  catch (e) { console.error('✗ Invalid CORS_ORIGIN_PATTERN:', e.message); }
+}
+
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return true;
+  if (FRONTEND_URLS.includes(origin)) return true;
+  if (ORIGIN_PATTERN && ORIGIN_PATTERN.test(origin)) return true;
   return false;
 }
 

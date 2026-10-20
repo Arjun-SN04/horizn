@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, Plus, LogOut, User as UserIcon, UserPlus, LogIn, Bell, Check, Heart, LayoutList, ShieldAlert, CalendarCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +6,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import { notificationsAPI } from '../api';
 import { ThemeTogglerButton } from '@/components/animate-ui/components/buttons/theme-toggler';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { StaySearchBar, StaySearchPill } from '@/components/StaySearch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,6 +140,9 @@ const WishlistButton = ({ isTransparent }) => {
   );
 };
 
+// Header height on the Explore page while the big search bar is showing (80 row + 88 search row)
+const EXPANDED_SEARCH_NAV_H = 168;
+
 export const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -151,17 +155,36 @@ export const Navbar = () => {
   const isBecomeHost = location.pathname === '/listing/new';
 
   const isTransparent = isHome && !scrolled;
+  // Explore stays page gets the Airbnb-style header: big search at the top,
+  // compact search pill in the header once you scroll.
+  const isSearchPage = location.pathname === '/listing';
+  const searchInputRef = useRef(null);
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   useEffect(() => {
+    // Two thresholds so the header doesn't flicker when scrolling right at the edge
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      const y = window.scrollY;
+      setScrolled((prev) => (prev ? y > 8 : y > 24));
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [location.pathname]);
+
+  // Compact header after scrolling. Sticky bars below the header read --nav-h.
+  const compact = scrolled;
+  const searchExpanded = isSearchPage && !compact;
+  const navHeight = isSearchPage ? (searchExpanded ? EXPANDED_SEARCH_NAV_H : 80) : (compact ? 64 : 80);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--nav-h', `${navHeight}px`);
+  }, [navHeight]);
+
+  const openSearch = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => searchInputRef.current?.focus(), 450);
+  };
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -172,14 +195,15 @@ export const Navbar = () => {
   const go = (path) => { setMenuOpen(false); navigate(path); };
 
   return (
-    <nav className={`z-50 transition-all duration-300 ${
-      isHome ? 'fixed top-0 inset-x-0' : 'sticky top-0'
+    <>
+    <nav className={`z-50 transition-[background-color,box-shadow,border-color] duration-300 ${
+      isHome || isSearchPage ? 'fixed top-0 inset-x-0' : 'sticky top-0'
     } ${
       isTransparent
         ? 'bg-gradient-to-b from-black/80 via-black/40 to-transparent border-transparent shadow-none'
-        : 'glass-effect border-b border-outline-variant/40 shadow-sm'
+        : `bg-surface border-b border-outline-variant/40 ${location.pathname === '/listing' ? '' : 'shadow-sm'}`
     }`}>
-      <div className="relative max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 h-20 flex items-center justify-between">
+      <div className={`relative max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 flex items-center justify-between transition-[height] duration-300 ease-out ${compact && !isSearchPage ? 'h-16' : 'h-20'}`}>
         {/* Brand */}
         <Link to="/" className="flex items-center no-underline shrink-0">
           <span className={`font-heading font-bold text-headline-md tracking-tight transition-colors duration-300 ${
@@ -190,7 +214,9 @@ export const Navbar = () => {
         </Link>
 
         {/* Centered nav links — desktop only */}
-        <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+        <div className={`hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2 transition-all duration-300 ${
+          isSearchPage && compact ? 'opacity-0 -translate-y-2 pointer-events-none' : 'opacity-100'
+        }`}>
           <Link
             to="/"
             className={`relative py-1 text-sm no-underline transition-colors duration-200 ${
@@ -228,6 +254,15 @@ export const Navbar = () => {
             Become a host
           </Link>
         </div>
+
+        {/* Compact search pill (Explore page, after scrolling) */}
+        {isSearchPage && (
+          <div className={`hidden md:block absolute left-1/2 -translate-x-1/2 transition-all duration-300 ${
+            compact ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
+          }`}>
+            <StaySearchPill onClick={openSearch} />
+          </div>
+        )}
 
         {/* Right side — desktop */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
@@ -434,6 +469,23 @@ export const Navbar = () => {
           </Sheet>
         </div>
       </div>
+
+      {/* Big search bar row (Explore page, top of page) */}
+      {isSearchPage && (
+        <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          searchExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}>
+          <div className="overflow-hidden">
+            <div className="max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 pt-1 pb-5">
+              <StaySearchBar inputRef={searchInputRef} />
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
+
+    {/* The header is fixed on the Explore page, so reserve its full height in the page flow */}
+    {isSearchPage && <div aria-hidden="true" style={{ height: EXPANDED_SEARCH_NAV_H }} />}
+    </>
   );
 };

@@ -18,7 +18,7 @@ const LinkedinIcon = (props) => (
   </svg>
 );
 
-const explore = (label) => ({ to: `/listing?search=${encodeURIComponent(label)}`, label });
+const explore = (label) => ({ to: `/listing?category=${encodeURIComponent(label)}`, label });
 
 export const Footer = () => {
   const { user } = useAuth();

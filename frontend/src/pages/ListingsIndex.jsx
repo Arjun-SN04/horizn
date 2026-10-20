@@ -10,6 +10,7 @@ import {
 import { listingsAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { AMENITIES } from '../lib/amenities';
+import { CATEGORIES } from '../lib/categories';
 import { loadEnglishStyle } from '../lib/mapStyle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -20,10 +21,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/animate-ui/components/radix/dropdown-menu';
 
-const CATEGORIES = [
-  'Trending', 'Rooms', 'Iconic City', 'Mountains', 'Castles',
-  'Amazing Pools', 'Camping', 'Farm', 'Arctic',
-];
 
 const SORTS = [
   { value: 'recommended', label: 'Recommended' },
@@ -182,8 +179,6 @@ const ListingsMap = ({ listings }) => {
 
 export const ListingsIndex = () => {
   const [listings, setListings] = useState([]);
-  const [liveQuery, setLiveQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -195,12 +190,29 @@ export const ListingsIndex = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('search') || '';
+  // Search, category and guests come from the URL (set by the header search bar)
+  const liveQuery = searchParams.get('search') || '';
+  const activeCategory = searchParams.get('category') || '';
+  const minGuests = Number(searchParams.get('guests')) || 0;
+  const updateParams = (patch) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(patch).forEach(([k, v]) => { if (v) next.set(k, String(v)); else next.delete(k); });
+    setSearchParams(next, { replace: true });
+  };
+  const setActiveCategory = (value) => updateParams({ category: value });
   const [mapOpen, setMapOpen] = useState(() => searchParams.get('view') === 'map');
   const loadMoreRef = useRef(null);
+  const [barShadow, setBarShadow] = useState(false);
+
+  // Shadow under the category bar once the page scrolls
+  useEffect(() => {
+    const onScroll = () => setBarShadow(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => { fetchListings(); }, []);
-  useEffect(() => { setLiveQuery(searchQuery); }, [searchQuery]);
 
   const fetchListings = async () => {
     try {
@@ -227,6 +239,8 @@ export const ListingsIndex = () => {
         l.title?.toLowerCase().includes(q) || l.description?.toLowerCase().includes(q) || l.location?.toLowerCase().includes(q));
     }
 
+    if (minGuests) result = result.filter(l => (l.guests || 1) >= minGuests);
+
     const min = parseFloat(minPrice);
     const max = parseFloat(maxPrice);
     if (!Number.isNaN(min)) result = result.filter(l => l.price >= min);
@@ -247,9 +261,9 @@ export const ListingsIndex = () => {
     if (sortBy === 'most-reviewed') result = [...result].sort((a, b) => (b.reviews?.length || 0) - (a.reviews?.length || 0));
 
     return result;
-  }, [listings, liveQuery, activeCategory, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
+  }, [listings, liveQuery, activeCategory, minGuests, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
 
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [liveQuery, activeCategory, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [liveQuery, activeCategory, minGuests, minPrice, maxPrice, minRating, selectedAmenities, sortBy]);
 
   const hasMore = visibleCount < filteredListings.length;
 
@@ -271,7 +285,7 @@ export const ListingsIndex = () => {
   const activeFilterCount = (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (minRating ? 1 : 0) + selectedAmenities.length;
 
   const formatPrice = (p) => p.toLocaleString('en-US');
-  const clearSearch = () => { setLiveQuery(''); setSearchParams({}); };
+  const clearSearch = () => updateParams({ search: '', category: '', guests: '' });
   const clearFilters = () => { setMinPrice(''); setMaxPrice(''); setMinRating(''); setSelectedAmenities([]); };
   const toggleAmenityFilter = (value) => {
     setSelectedAmenities(prev => prev.includes(value) ? prev.filter(a => a !== value) : [...prev, value]);
@@ -284,27 +298,11 @@ export const ListingsIndex = () => {
   return (
     <div className="flex flex-col bg-surface min-h-screen">
       {/* Category filter bar */}
-      <nav className="sticky top-20 z-30 bg-surface border-b border-outline-variant/40">
+      <nav
+        style={{ top: 'var(--nav-h, 80px)' }}
+        className={`sticky z-30 bg-surface border-b border-outline-variant/40 transition-[top,box-shadow] duration-300 ease-out ${barShadow ? 'shadow-[0_6px_16px_-8px_rgba(0,0,0,0.18)]' : ''}`}
+      >
         <div className="max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 py-2 flex items-center gap-4 overflow-x-auto scrollbar-hide">
-          <div className="relative shrink-0 w-40 sm:w-56">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant size-3.5" />
-            <Input
-              value={liveQuery}
-              onChange={(e) => {
-                const val = e.target.value;
-                setLiveQuery(val);
-                setSearchParams(val.trim() ? { search: val.trim() } : {});
-              }}
-              placeholder="Search stays..."
-              className="h-9 rounded-full bg-surface-container-low border-outline-variant pl-9 pr-7 text-sm"
-            />
-            {liveQuery && (
-              <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-          <div className="w-px h-8 bg-outline-variant/60 shrink-0" />
           <ToggleGroup
             type="single"
             className="gap-1"
@@ -414,7 +412,7 @@ export const ListingsIndex = () => {
           </div>
         </div>
 
-        {liveQuery && (
+        {(liveQuery || activeCategory || minGuests > 0) && (
           <button onClick={clearSearch} className="mb-lg flex items-center gap-1.5 text-body-sm text-on-surface-variant bg-surface-container-low border-0 cursor-pointer px-3 py-1.5 rounded-full hover:bg-surface-container transition-all">
             <Search className="size-3.5" /> Clear search <X className="size-3.5" />
           </button>
@@ -446,7 +444,7 @@ export const ListingsIndex = () => {
             <div className="text-5xl mb-4">🔍</div>
             <h3 className="text-lg font-bold text-on-surface mb-2">No stays found</h3>
             <p className="text-sm text-on-surface-variant mb-6">Try a different location, category, or price range</p>
-            <Button onClick={() => { clearSearch(); setActiveCategory(''); clearFilters(); }} className="rounded-full bg-primary text-on-primary font-bold border-0">
+            <Button onClick={() => { clearSearch(); clearFilters(); }} className="rounded-full bg-primary text-on-primary font-bold border-0">
               View all stays
             </Button>
           </div>
