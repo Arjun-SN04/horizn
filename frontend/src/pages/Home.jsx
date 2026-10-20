@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SmartImage } from '@/components/SmartImage';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, MotionConfig } from 'motion/react';
-import { Search, ArrowRight, Star } from 'lucide-react';
+import { Search, ArrowRight, Star, RefreshCw } from 'lucide-react';
 import { listingsAPI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getRecentlyViewed } from '../lib/recentlyViewed';
 import { Button } from '@/components/animate-ui/components/buttons/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LikeButton } from '../components/LikeButton';
 import { ScrollReveal, StaggerGroup, StaggerItem } from '../components/ScrollReveal';
 
@@ -42,6 +43,7 @@ export const Home = () => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Cabins');
   const [stays, setStays] = useState([]);
+  const [staysStatus, setStaysStatus] = useState('loading'); // loading | ready | error
   const [recentlyViewed, setRecentlyViewed] = useState([]);
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
@@ -49,10 +51,15 @@ export const Home = () => {
   const heroContentY = useTransform(scrollYProgress, [0, 1], ['0%', '40%']);
   const heroContentOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
-  useEffect(() => {
+  const loadStays = () => {
+    setStaysStatus('loading');
     listingsAPI.getAllListings()
-      .then((res) => setStays(res.data.allListings.slice(0, 8)))
-      .catch(() => setStays([]));
+      .then((res) => { setStays((res.data.allListings || []).slice(0, 8)); setStaysStatus('ready'); })
+      .catch(() => setStaysStatus('error'));
+  };
+
+  useEffect(() => {
+    loadStays();
     setRecentlyViewed(getRecentlyViewed());
   }, []);
 
@@ -183,7 +190,32 @@ export const Home = () => {
             </Link>
           </ScrollReveal>
 
-          <StaggerGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter" stagger={0.07}>
+          {staysStatus === 'loading' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+              {[...Array(8)].map((_, i) => (
+                <div key={i}>
+                  <Skeleton className="aspect-4/3 w-full rounded-xl mb-md" />
+                  <Skeleton className="h-4 w-3/4 mb-2 rounded-full" />
+                  <Skeleton className="h-3.5 w-1/2 mb-3 rounded-full" />
+                  <Skeleton className="h-5 w-1/3 rounded-full" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {staysStatus === 'error' && (
+            <div className="rounded-2xl border border-dashed border-outline-variant/60 py-16 flex flex-col items-center gap-3 text-center px-6">
+              <p className="font-semibold text-on-surface mb-0">Couldn't load stays right now</p>
+              <p className="text-sm text-on-surface-variant mb-1">The server may be waking up. This can take up to a minute.</p>
+              <Button onClick={loadStays} variant="outline" className="rounded-full">
+                <RefreshCw className="size-4" /> Try again
+              </Button>
+            </div>
+          )}
+
+          {/* Mounted only once data exists, so the scroll-in animation always has cards to reveal */}
+          {staysStatus === 'ready' && (
+          <StaggerGroup key={stays.length} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter" stagger={0.07}>
             {stays.map((listing) => {
               const avgRating = getAvgRating(listing);
               return (
@@ -219,6 +251,7 @@ export const Home = () => {
               );
             })}
           </StaggerGroup>
+          )}
         </section>
 
         {/* ── RECENTLY VIEWED ── */}
