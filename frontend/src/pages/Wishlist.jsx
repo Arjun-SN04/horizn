@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -54,7 +55,7 @@ export const Wishlist = () => {
             {favorites.map((listing) => (
               <Link key={listing._id} to={`/listings/${listing._id}`} className="group relative h-64 rounded-2xl overflow-hidden shadow-sm block no-underline">
                 <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent z-10" />
-                <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <SmartImage width={500} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <LikeButton
                   listingId={listing._id}
                   className="absolute top-3 right-3 z-20 glass-effect w-9 h-9 rounded-full flex items-center justify-center hover:scale-110 transition-transform"

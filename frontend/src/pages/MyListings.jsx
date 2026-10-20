@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Star, Pencil, Trash2, CalendarDays, Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -108,7 +109,7 @@ export const MyListings = () => {
               return (
                 <Card key={listing._id} className="overflow-hidden shadow-sm border-outline-variant/30 p-0 gap-0">
                   <Link to={`/listings/${listing._id}`} className="block h-44 overflow-hidden relative group">
-                    <img src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <SmartImage width={500} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     {upcoming > 0 && (
                       <div className="absolute top-3 left-3 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-label-sm font-bold shadow-sm text-black flex items-center gap-1.5">
                         <CalendarDays className="size-3.5 text-primary" /> {upcoming} upcoming

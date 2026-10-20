@@ -127,3 +127,12 @@ module.exports.cancelBooking = async (req, res) => {
 
   res.json({ success: true, message: 'Booking cancelled' });
 };
+
+// Admin: every booking on the site, newest first.
+module.exports.getAllBookings = async (req, res) => {
+  const bookings = await Booking.find()
+    .sort({ createdAt: -1 })
+    .populate('listing', 'title image location country price')
+    .populate('guest', 'username email');
+  res.json({ success: true, bookings });
+};

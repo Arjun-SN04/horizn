@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/animate-ui/components/buttons/button';
 
@@ -57,7 +58,7 @@ export const Login = () => {
 
           <div>
             <Label className="mb-1.5">Password</Label>
-            <Input name="password" type="password" value={credentials.password} onChange={handleChange}
+            <PasswordInput name="password" value={credentials.password} onChange={handleChange}
               placeholder="Enter your password" className="h-11 rounded-xl bg-muted/40"
               aria-invalid={!!errors.password} />
             {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}

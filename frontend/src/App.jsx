@@ -18,6 +18,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Wishlist = lazy(() => import('./pages/Wishlist').then((m) => ({ default: m.Wishlist })));
 const MyListings = lazy(() => import('./pages/MyListings').then((m) => ({ default: m.MyListings })));
 const AdminReports = lazy(() => import('./pages/AdminReports').then((m) => ({ default: m.AdminReports })));
+const AdminBookings = lazy(() => import('./pages/AdminBookings').then((m) => ({ default: m.AdminBookings })));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 
@@ -47,6 +48,7 @@ const AnimatedRoutes = () => {
           <Route path="/listing/new" element={<NewListing />} />
           <Route path="/listing/mine" element={<MyListings />} />
           <Route path="/admin/reports" element={<AdminReports />} />
+          <Route path="/admin/bookings" element={<AdminBookings />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/listings/:id" element={<ShowListing />} />

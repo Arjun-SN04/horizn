@@ -360,7 +360,7 @@ export default function Profile() {
                   {upcomingTrips.map((trip) => (
                     <div key={trip._id} className="group relative bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm hover:shadow-xl transition-all duration-300">
                       <Link to={`/listings/${trip.listing._id}`} className="block h-48 overflow-hidden relative no-underline">
-                        <img src={trip.listing.image} alt={trip.listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        <SmartImage width={400} src={trip.listing.image} alt={trip.listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-md py-xs rounded-full text-label-sm font-bold shadow-sm text-black">
                           {whenLabel(trip.checkIn)}
                         </div>
@@ -427,7 +427,7 @@ export default function Profile() {
                   {favorites.slice(0, 3).map((listing) => (
                     <Link key={listing._id} to={`/listings/${listing._id}`} className="group relative h-64 rounded-2xl overflow-hidden shadow-sm block no-underline">
                       <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent z-10" />
-                      <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <SmartImage width={500} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <LikeButton
                         listingId={listing._id}
                         className="absolute top-3 right-3 z-20 glass-effect w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform"

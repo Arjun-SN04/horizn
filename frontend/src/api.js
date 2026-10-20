@@ -61,6 +61,7 @@ export const reportsAPI = {
 export const adminAPI = {
   getReports: () => api.get('/admin/reports'),
   updateReportStatus: (id, status) => api.patch(`/admin/reports/${id}`, { status }),
+  getBookings: () => api.get('/admin/bookings'),
 };
 
 // Reviews API calls

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  ArrowLeft, UploadCloud, X, PenLine, Images, MapPin, Users, Sparkles,
+  ArrowLeft, UploadCloud, X, PenLine, Images, MapPin, Users, ConciergeBell,
 } from 'lucide-react';
 import { listingsAPI } from '../api';
 import { AMENITIES } from '../lib/amenities';
@@ -184,7 +185,7 @@ export const EditListing = () => {
                 <div>
                   <Label className="mb-1.5">Cover photo</Label>
                   <div className="rounded-xl overflow-hidden h-52 mb-2.5 shadow-sm">
-                    <img src={preview || currentImage} alt="listing" className="w-full h-full object-cover" />
+                    <SmartImage width={800} src={preview || currentImage} alt="listing" className="w-full h-full object-cover" />
                   </div>
                   <label className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-dashed border-outline-variant bg-surface-container-low cursor-pointer text-body-sm text-on-surface-variant transition-all hover:border-primary hover:bg-primary/5">
                     <UploadCloud className="size-4" />
@@ -199,7 +200,7 @@ export const EditListing = () => {
                     <div className="grid grid-cols-3 gap-2 mb-2">
                       {existingGallery.map((url) => (
                         <div key={url} className="relative rounded-xl overflow-hidden h-24 shadow-sm">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <SmartImage width={300} src={url} alt="" className="w-full h-full object-cover" />
                           <button type="button" onClick={() => removeExistingGalleryImage(url)}
                             className="absolute top-1 right-1 w-5 h-5 rounded-full bg-surface-container-lowest border-0 cursor-pointer text-on-surface-variant shadow-md flex items-center justify-center hover:text-on-surface">
                             <X className="size-3" />
@@ -285,7 +286,7 @@ export const EditListing = () => {
 
             {/* Amenities */}
             <section>
-              <SectionHeading icon={Sparkles} title="Amenities" subtitle="Select everything your place offers" />
+              <SectionHeading icon={ConciergeBell} title="Amenities" subtitle="Select everything your place offers" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {AMENITIES.map(({ value, label, icon: Icon }) => {
                   const checked = amenities.includes(value);

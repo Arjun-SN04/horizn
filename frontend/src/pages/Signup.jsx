@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/PasswordInput';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/animate-ui/components/buttons/button';
 
@@ -53,15 +54,18 @@ export const Signup = () => {
         </div>
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4.5">
-          {fields.map(({ name, label, type, placeholder }) => (
+          {fields.map(({ name, label, type, placeholder }) => {
+            const FieldInput = type === 'password' ? PasswordInput : Input;
+            return (
             <div key={name}>
               <Label className="mb-1.5">{label}</Label>
-              <Input type={type} name={name} value={formData[name]} onChange={handleChange}
+              <FieldInput type={type} name={name} value={formData[name]} onChange={handleChange}
                 placeholder={placeholder} className="h-11 rounded-xl bg-muted/40"
                 aria-invalid={!!errors[name]} />
               {errors[name] && <p className="text-xs text-destructive mt-1">{errors[name]}</p>}
             </div>
-          ))}
+            );
+          })}
 
           <Button type="submit" size="lg" className="w-full rounded-full bg-primary text-on-primary font-bold shadow-md hover:shadow-lg border-0 mt-1.5">
             Create Account

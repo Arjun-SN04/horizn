@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShieldAlert, Flag, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -131,7 +132,7 @@ export const AdminReports = () => {
                 <div className="flex items-start gap-lg flex-wrap">
                   {report.listing ? (
                     <Link to={`/listings/${report.listing._id}`} className="w-24 h-20 rounded-xl overflow-hidden shrink-0 block">
-                      <img src={report.listing.image} alt={report.listing.title} className="w-full h-full object-cover" />
+                      <SmartImage width={200} src={report.listing.image} alt={report.listing.title} className="w-full h-full object-cover" />
                     </Link>
                   ) : (
                     <div className="w-24 h-20 rounded-xl bg-surface-container-low flex items-center justify-center text-on-surface-variant text-xs shrink-0">deleted</div>

@@ -21,11 +21,14 @@ module.exports.createUser = (req, res, next) => {
 
     User.register(newUser, password, (err, registeredUser) => {
         if (err) {
-            // Handle duplicate username/email gracefully
-            return res.status(400).json({
-                success: false,
-                message: err.message || 'Registration failed'
-            });
+            // Duplicate username (passport-local-mongoose) or duplicate email (Mongo unique index)
+            let message = 'Registration failed. Please try again.';
+            if (err.name === 'UserExistsError' || err.keyPattern?.username) {
+                message = 'That username is already taken.';
+            } else if (err.code === 11000 && err.keyPattern?.email) {
+                message = 'An account with this email already exists. Try logging in.';
+            }
+            return res.status(409).json({ success: false, message });
         }
 
         req.login(registeredUser, (loginErr) => {

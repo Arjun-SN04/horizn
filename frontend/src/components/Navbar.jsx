@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, Plus, LogOut, User as UserIcon, UserPlus, LogIn, Bell, Check, Heart, LayoutList, ShieldAlert } from 'lucide-react';
+import { Menu, Plus, LogOut, User as UserIcon, UserPlus, LogIn, Bell, Check, Heart, LayoutList, ShieldAlert, CalendarCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { notificationsAPI } from '../api';
@@ -179,7 +179,7 @@ export const Navbar = () => {
         ? 'bg-gradient-to-b from-black/80 via-black/40 to-transparent border-transparent shadow-none'
         : 'glass-effect border-b border-outline-variant/40 shadow-sm'
     }`}>
-      <div className="relative max-w-7xl mx-auto px-margin-mobile md:px-lg h-20 flex items-center justify-between">
+      <div className="relative max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 h-20 flex items-center justify-between">
         {/* Brand */}
         <Link to="/" className="flex items-center no-underline shrink-0">
           <span className={`font-heading font-bold text-headline-md tracking-tight transition-colors duration-300 ${
@@ -291,6 +291,11 @@ export const Navbar = () => {
                   {user.isAdmin && (
                     <DropdownMenuItem onSelect={() => navigate('/admin/reports')} className="cursor-pointer">
                       <ShieldAlert /> Reports
+                    </DropdownMenuItem>
+                  )}
+                  {user.isAdmin && (
+                    <DropdownMenuItem onSelect={() => navigate('/admin/bookings')} className="cursor-pointer">
+                      <CalendarCheck /> All bookings
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
@@ -410,6 +415,12 @@ export const Navbar = () => {
                       <Link to="/admin/reports" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
                         <ShieldAlert className="text-primary size-4" />
                         Reports
+                      </Link>
+                    )}
+                    {user.isAdmin && (
+                      <Link to="/admin/bookings" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-on-surface/80 text-sm font-medium no-underline rounded-xl hover:bg-surface-container-low transition-all">
+                        <CalendarCheck className="text-primary size-4" />
+                        All bookings
                       </Link>
                     )}
                     <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 text-destructive text-sm font-medium border-0 bg-transparent cursor-pointer rounded-xl hover:bg-destructive/10 transition-all w-full text-left">

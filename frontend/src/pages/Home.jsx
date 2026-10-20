@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, MotionConfig } from 'motion/react';
 import { Search, ArrowRight, Star } from 'lucide-react';
@@ -20,6 +21,7 @@ const getAvgRating = (listing) => listing.reviews?.length
   ? listing.reviews.reduce((s, r) => s + (r.rating || 0), 0) / listing.reviews.length
   : null;
 
+const HERO_IMG = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=70';
 const destinations = [
   { name: 'Bali', country: 'Indonesia', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=400&q=80' },
   { name: 'Santorini', country: 'Greece', img: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=400&q=80' },
@@ -63,7 +65,10 @@ export const Home = () => {
         <section ref={heroRef} className="relative h-[88vh] min-h-[660px] lg:min-h-[740px] w-full flex items-center justify-center overflow-hidden pt-28 pb-16">
           <motion.div className="absolute inset-0 z-0" style={{ y: heroImageY }}>
             <motion.img
-              src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600&q=80"
+              src={`${HERO_IMG}&w=1600`}
+              srcSet={[800, 1200, 1600, 2200].map((w) => `${HERO_IMG}&w=${w} ${w}w`).join(', ')}
+              sizes="100vw"
+              fetchPriority="high"
               alt=""
               className="w-full h-full object-cover"
               initial={{ scale: 1.12 }}
@@ -104,9 +109,9 @@ export const Home = () => {
               animate="visible"
               variants={heroTextVariants}
               onSubmit={(e) => { e.preventDefault(); navigate(search.trim() ? `/listing?search=${encodeURIComponent(search.trim())}` : '/listing'); }}
-              className="p-2.5 rounded-full shadow-2xl flex flex-col md:flex-row items-center gap-2 border border-white/40 backdrop-blur-xl bg-white/90 text-neutral-900 dark:bg-black/50 dark:text-white dark:border-white/20"
+              className="p-2.5 rounded-3xl md:rounded-full shadow-2xl flex flex-col md:flex-row items-center gap-1 md:gap-2 border border-white/40 backdrop-blur-xl bg-white/90 text-neutral-900 dark:bg-black/50 dark:text-white dark:border-white/20"
             >
-              <div className="flex-1 w-full px-6 py-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+              <div className="flex-1 w-full px-5 md:px-6 py-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-2xl md:rounded-full transition-colors">
                 <p className="text-label-sm text-neutral-900 dark:text-white/90 font-bold">Location</p>
                 <input
                   value={search}
@@ -117,17 +122,17 @@ export const Home = () => {
                 />
               </div>
               <div className="hidden md:block w-px h-8 bg-neutral-300 dark:bg-white/20" />
-              <div className="flex-1 w-full px-6 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <div className="flex-1 w-full px-5 md:px-6 py-2 rounded-2xl md:rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                 <p className="text-label-sm text-neutral-900 dark:text-white/90 font-bold">Check in</p>
                 <p className="text-body-sm text-neutral-600 dark:text-white/70 mb-0 font-medium">Add dates</p>
               </div>
               <div className="hidden md:block w-px h-8 bg-neutral-300 dark:bg-white/20" />
-              <div className="flex-1 w-full px-6 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <div className="flex-1 w-full px-5 md:px-6 py-2 rounded-2xl md:rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                 <p className="text-label-sm text-neutral-900 dark:text-white/90 font-bold">Check out</p>
                 <p className="text-body-sm text-neutral-600 dark:text-white/70 mb-0 font-medium">Add dates</p>
               </div>
               <div className="hidden md:block w-px h-8 bg-neutral-300 dark:bg-white/20" />
-              <div className="flex-1 w-full px-6 py-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <div className="flex-1 w-full px-5 md:px-6 py-2 rounded-2xl md:rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                 <p className="text-label-sm text-neutral-900 dark:text-white/90 font-bold">Guests</p>
                 <p className="text-body-sm text-neutral-600 dark:text-white/70 mb-0 font-medium">Add guests</p>
               </div>
@@ -135,7 +140,7 @@ export const Home = () => {
                 whileHover={{ scale: 1.06 }}
                 whileTap={{ scale: 0.94 }}
                 type="submit"
-                className="bg-primary hover:bg-primary/90 text-on-primary w-full md:w-14 h-14 rounded-full flex items-center justify-center transition-colors shadow-lg shrink-0"
+                className="bg-primary hover:bg-primary/90 text-on-primary w-full md:w-14 h-12 md:h-14 mt-1 md:mt-0 rounded-2xl md:rounded-full flex items-center justify-center transition-colors shadow-lg shrink-0"
               >
                 <Search className="size-5" />
               </motion.button>
@@ -185,8 +190,8 @@ export const Home = () => {
                 <StaggerItem key={listing._id} variant="up">
                   <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.25, ease: EASE }}>
                     <Link to={`/listings/${listing._id}`} className="group no-underline text-inherit block">
-                      <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-md shadow-sm group-hover:shadow-lg transition-shadow duration-300">
-                        <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-surface-container mb-md shadow-sm group-hover:shadow-lg transition-shadow duration-300">
+                        <SmartImage width={500} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <LikeButton
                           listingId={listing._id}
                           className="absolute top-3 right-3 glass-effect w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
@@ -229,8 +234,8 @@ export const Home = () => {
                     to={`/listings/${listing._id}`}
                     className="group no-underline text-inherit block"
                   >
-                    <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-md shadow-sm group-hover:shadow-lg transition-all duration-300">
-                      <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-surface-container mb-md shadow-sm group-hover:shadow-lg transition-all duration-300">
+                      <SmartImage width={500} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <LikeButton
                         listingId={listing._id}
                         className="absolute top-3 right-3 glass-effect w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
@@ -264,7 +269,7 @@ export const Home = () => {
                       transition={{ duration: 0.25, ease: EASE }}
                       className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-surface-container-lowest shadow-md"
                     >
-                      <img src={d.img} alt={d.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <SmartImage width={200} src={d.img} alt={d.name} className="w-full h-full object-cover" />
                     </motion.div>
                     <div className="text-center">
                       <p className="font-bold text-on-surface mb-0">{d.name}</p>
@@ -281,10 +286,10 @@ export const Home = () => {
         <section className="max-w-7xl mx-auto px-margin-mobile md:px-lg py-xxl">
           <ScrollReveal duration={0.7} amount={0.3}>
             <div className="relative w-full rounded-3xl overflow-hidden min-h-105 flex items-center">
-              <img
-                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1400&q=80"
+              <SmartImage
+                width={1400}
+                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"
                 alt=""
-                loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-linear-to-r from-black/65 to-transparent" />

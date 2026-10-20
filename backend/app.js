@@ -150,10 +150,12 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json({ success: false, error: message });
 });
 
-// ── LOCAL DEV ONLY ────────────────────────────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
+// ── START SERVER ──────────────────────────────────────────────────────
+// Listen whenever this file is run directly (`node app.js`: local, Docker, Render).
+// When imported (e.g. by a serverless wrapper) it only exports the app.
+if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`✓ Server running on http://localhost:${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => console.log(`✓ Server running on port ${PORT}`));
 }
 
 module.exports = app;

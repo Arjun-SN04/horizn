@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -39,7 +40,7 @@ const MIN_RATINGS = [
 ];
 
 const GUEST_FAVORITE_THRESHOLD = 4.8;
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 24;
 
 const getAvgRating = (listing) => listing.reviews?.length
   ? listing.reviews.reduce((s, r) => s + (r.rating || 0), 0) / listing.reviews.length
@@ -284,7 +285,7 @@ export const ListingsIndex = () => {
     <div className="flex flex-col bg-surface min-h-screen">
       {/* Category filter bar */}
       <nav className="sticky top-20 z-30 bg-surface border-b border-outline-variant/40">
-        <div className="max-w-7xl mx-auto px-margin-mobile md:px-lg py-2 flex items-center gap-4 overflow-x-auto scrollbar-hide">
+        <div className="max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 py-2 flex items-center gap-4 overflow-x-auto scrollbar-hide">
           <div className="relative shrink-0 w-40 sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant size-3.5" />
             <Input
@@ -378,7 +379,7 @@ export const ListingsIndex = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto w-full px-margin-mobile md:px-lg py-xl">
+      <main className="max-w-[1880px] mx-auto px-6 md:px-10 xl:px-12 w-full py-xl">
         {/* Header row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-xl">
           <div>
@@ -431,10 +432,10 @@ export const ListingsIndex = () => {
         {error && <div className="px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-2xl text-destructive text-sm mb-xl">{error}</div>}
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-gutter gap-y-xl">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1760px]:grid-cols-7 gap-x-6 gap-y-10">
+            {[...Array(14)].map((_, i) => (
               <div key={i}>
-                <Skeleton className="aspect-4/3 w-full rounded-xl mb-3" />
+                <Skeleton className="aspect-square w-full rounded-xl mb-3" />
                 <Skeleton className="h-3.5 w-3/4 mb-2.5 rounded-full" />
                 <Skeleton className="h-3 w-1/2 rounded-full" />
               </div>
@@ -451,14 +452,14 @@ export const ListingsIndex = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-gutter gap-y-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1760px]:grid-cols-7 gap-x-6 gap-y-10">
               {visibleListings.map((listing) => {
                 const avgRating = getAvgRating(listing);
                 const isGuestFavorite = avgRating !== null && avgRating >= GUEST_FAVORITE_THRESHOLD;
                 return (
                   <Link key={listing._id} to={`/listings/${listing._id}`} onClick={handleCardClick} className="group no-underline text-inherit block">
-                    <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-3 shadow-sm group-hover:shadow-lg transition-shadow">
-                      <img src={listing.image} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="relative aspect-square rounded-xl overflow-hidden bg-surface-container mb-3 shadow-sm group-hover:shadow-lg transition-shadow">
+                      <SmartImage width={400} src={listing.image} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <LikeButton
                         listingId={listing._id}
                         className="absolute top-3 right-3 text-white drop-shadow-md hover:scale-110 transition-transform"
@@ -479,9 +480,9 @@ export const ListingsIndex = () => {
                     </div>
                     <div className="flex justify-between items-start gap-2">
                       <div className="min-w-0">
-                        <h3 className="font-heading text-body-lg font-bold text-on-surface truncate">{listing.location}, {listing.country}</h3>
+                        <h3 className="font-heading text-[15px] leading-5 font-semibold text-on-surface truncate mb-0.5">{listing.location}, {listing.country}</h3>
                         <p className="text-on-surface-variant text-body-sm mb-0 truncate">{listing.title}</p>
-                        <p className="mt-2 text-on-surface font-bold text-body-md">
+                        <p className="mt-1 mb-0 text-on-surface font-semibold text-body-sm">
                           ${formatPrice(listing.price)} <span className="font-normal text-on-surface-variant">night</span>
                         </p>
                       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SmartImage } from '@/components/SmartImage';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft, Pencil, Trash2, Star, MapPin, Users, BedDouble, Bath, ShieldCheck,
@@ -539,7 +540,7 @@ export const ShowListing = () => {
             onClick={() => setLightboxOpen(true)}
             className="md:col-span-2 relative overflow-hidden group h-full border-0 p-0 cursor-pointer"
           >
-            <img src={gallery[0]} alt={listing.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <SmartImage width={1280} eager src={gallery[0]} alt={listing.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
           </button>
           {sideImages.length > 0 && (
             <div className="hidden md:flex md:flex-col gap-3 h-full">
@@ -550,7 +551,7 @@ export const ShowListing = () => {
                   onClick={() => setLightboxOpen(true)}
                   className="flex-1 relative overflow-hidden group border-0 p-0 cursor-pointer rounded-lg"
                 >
-                  <img src={src} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <SmartImage width={640} src={src} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 </button>
               ))}
             </div>
@@ -569,7 +570,7 @@ export const ShowListing = () => {
         <Modal open={lightboxOpen} onClose={() => setLightboxOpen(false)} title={`${listing.title} · ${gallery.length} photo${gallery.length !== 1 ? 's' : ''}`} maxWidthClass="max-w-4xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {gallery.map((src, i) => (
-              <img key={i} src={src} alt="" className="w-full h-64 object-cover rounded-xl" />
+              <SmartImage key={i} width={800} src={src} alt="" className="w-full h-64 object-cover rounded-xl" />
             ))}
           </div>
         </Modal>
